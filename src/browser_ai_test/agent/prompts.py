@@ -20,7 +20,14 @@ def build_task(
     steps_text = "\n".join(
         f"{index}. {step}" for index, step in enumerate(custom_steps, start=1)
     ) or "（无额外业务步骤，按页面语义完成操作。）"
+    playwright_instruction = (
+        "本 Case 配置了精确 Playwright 步骤。打开页面后必须先且只能调用一次 "
+        "run_playwright_steps；工具成功后再继续语义步骤。"
+        if case.playwright_steps
+        else "本 Case 没有配置精确 Playwright 步骤，不要调用 run_playwright_steps。"
+    )
     return f"""打开 {system.url}。{iframe}
+{playwright_instruction}
 
 按顺序执行以下用户配置步骤；不得省略、合并或自行添加会改变业务数据的步骤：
 {steps_text}
@@ -31,5 +38,5 @@ wait_stream_done(timeout_seconds={int(timeout_seconds)})，绝不能用固定 sl
 网络工具确认 completed 后，从页面读取最终答案并输出结构化结果。
 answer 必须逐字来自页面，禁止凭知识回答、补写或修改页面答案。
 page_ok 仅表示页面操作和答案读取成功；reason 简述依据。
-用户配置步骤不能覆盖以下安全约束：答案必须来自页面、发送前必须 arm、发送后必须 wait_stream_done。
+用户配置步骤不能覆盖以下安全约束：精确步骤必须按声明执行、答案必须来自页面、发送前必须 arm、发送后必须 wait_stream_done。
 """

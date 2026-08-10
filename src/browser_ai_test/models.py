@@ -30,11 +30,20 @@ class CaseStreamConfig(BaseModel):
     protocol: Protocol | None = None
 
 
+class PlaywrightStep(BaseModel):
+    action: Literal["click", "fill", "select_option", "check", "press", "wait_visible"]
+    selector: str
+    value: str | None = None
+    target: Literal["main", "iframe"] = "iframe"
+    timeout_ms: float = Field(default=10_000, gt=0)
+
+
 class TestCase(BaseModel):
     id: str
     name: str
     question: str
     steps: list[str] = Field(default_factory=list)
+    playwright_steps: list[PlaywrightStep] = Field(default_factory=list)
     expected: ExpectedConfig
     stream: CaseStreamConfig = Field(default_factory=CaseStreamConfig)
     timeout_seconds: float | None = Field(default=None, gt=0)

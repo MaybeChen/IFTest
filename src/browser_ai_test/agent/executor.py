@@ -42,7 +42,12 @@ class AgentExecutor:
             ),
             "llm": self.llm,
             "browser_session": self.session.browser_use_session,
-            "tools": create_monitor_tools(self.session.monitor),
+            "tools": create_monitor_tools(
+                self.session.monitor,
+                self.session.page,
+                case.playwright_steps,
+                self.system.iframe_selector,
+            ),
         }
         signature = inspect.signature(Agent)
         if "output_model_schema" in signature.parameters:

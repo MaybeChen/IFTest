@@ -163,6 +163,52 @@ cases:
 `src/browser_ai_test/agent/tools.py` 注册新的自定义 Tool，再在步骤中明确要求调用该 Tool；
 不要期待自然语言步骤具有 Playwright 脚本一样的确定性。
 
+### 配置精确 Playwright 步骤
+
+需要提供详细 selector 的操作可以直接写在 Case 的 `playwright_steps` 中，不必为每个
+Case 编写 Python。支持 `click`、`fill`、`select_option`、`check`、`press` 和
+`wait_visible`：
+
+```yaml
+system:
+  iframe_selector: "#business-frame"  # target=iframe 时必须配置
+```
+
+```yaml
+cases:
+  - id: QA_EXACT_001
+    name: 精确页面操作
+    question: "产品 A 的保修期是多久？"
+    playwright_steps:
+      - action: click
+        target: main
+        selector: "[data-testid='ai-menu']"
+      - action: wait_visible
+        target: iframe
+        selector: "[data-testid='knowledge-base']"
+        timeout_ms: 15000
+      - action: select_option
+        target: iframe
+        selector: "[data-testid='knowledge-base']"
+        value: "product-manual"
+      - action: check
+        target: iframe
+        selector: "#detailed-mode"
+```
+
+当 Case 存在 `playwright_steps` 时，Browser Use 打开页面后会被要求调用一次
+`run_playwright_steps` Tool。该 Tool 使用共享 Playwright Page 和同一个 Chrome/CDP，严格
+按 YAML 顺序执行；任何 selector 超时或 action 失败都会返回明确错误，不会让 Agent 猜测
+已经完成。`target: main` 定位主页面，`target: iframe` 使用
+`system.iframe_selector` 进入 iframe。
+
+建议分工如下：
+
+- 页面结构稳定、必须可重复的点击/填写：使用 `playwright_steps`。
+- 页面结构经常变化、需要视觉或语义理解：使用 `steps`。
+- 提交 AI 问题和等待生成完成：仍由 Browser Use + StreamMonitor 的强制流程处理，避免
+  Playwright 步骤绕过 `arm_stream_monitor`。
+
 ## 启动同一个 Chrome/CDP
 
 Playwright 和 Browser Use 都连接 `browser.cdp_url`，不会各自启动浏览器。

@@ -4,14 +4,30 @@ import json
 from typing import Any
 
 from browser_ai_test.browser.stream_monitor import StreamMonitor, StreamMonitorError, StreamTimeoutError
-from browser_ai_test.models import Protocol
+from browser_ai_test.browser.playwright_steps import execute_playwright_steps
+from browser_ai_test.models import PlaywrightStep, Protocol
 
 
-def create_monitor_tools(monitor: StreamMonitor) -> Any:
+def create_monitor_tools(
+    monitor: StreamMonitor,
+    page: Any,
+    playwright_steps: list[PlaywrightStep],
+    iframe_selector: str | None,
+) -> Any:
     """Build case-local browser-use Tools; no mutable monitor is global."""
     from browser_use import ActionResult, Tools
 
     tools = Tools()
+
+    @tools.action(description="执行 Case 配置的精确 Playwright 步骤；如有配置必须且只能调用一次。")
+    async def run_playwright_steps() -> ActionResult:
+        try:
+            completed = await execute_playwright_steps(page, playwright_steps, iframe_selector)
+            return ActionResult(
+                extracted_content=json.dumps({"completed": completed}, ensure_ascii=False)
+            )
+        except Exception as exc:
+            return ActionResult(error=str(exc))
 
     @tools.action(description="点击发送之前准备并清空 CDP 流监听器。")
     async def arm_stream_monitor(protocol: Protocol = "auto") -> ActionResult:

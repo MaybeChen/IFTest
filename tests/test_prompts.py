@@ -1,6 +1,6 @@
 from browser_ai_test.agent.prompts import build_task
 from browser_ai_test.config import AgentConfig, SystemConfig
-from browser_ai_test.models import ExpectedConfig, TestCase as CaseModel
+from browser_ai_test.models import ExpectedConfig, PlaywrightStep, TestCase as CaseModel
 
 
 def test_custom_steps_are_ordered_before_mandatory_network_steps():
@@ -45,3 +45,22 @@ def test_prompt_keeps_mandatory_steps_when_no_custom_steps():
     assert "无额外业务步骤" in prompt
     assert "只点击一次" in prompt
     assert "答案必须来自页面" in prompt
+    assert "不要调用 run_playwright_steps" in prompt
+
+
+def test_prompt_requires_exact_step_tool_when_configured():
+    case = CaseModel(
+        id="QA_EXACT",
+        name="exact",
+        question="question",
+        playwright_steps=[PlaywrightStep(action="click", selector="#menu")],
+        expected=ExpectedConfig(type="keyword", values=["answer"]),
+    )
+    prompt = build_task(
+        case,
+        SystemConfig(url="https://example.test", iframe_selector="#frame"),
+        AgentConfig(),
+        "http",
+        30,
+    )
+    assert "必须先且只能调用一次 run_playwright_steps" in prompt
