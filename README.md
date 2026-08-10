@@ -20,13 +20,52 @@ Runner 在一个外部 Chrome、一个 Browser Use `BrowserSession`、一个 Pla
 
 要求 Python 3.12+。项目声明的 Browser Use 兼容系列为 `>=0.11,<0.12`；关键构造参数会进行运行时签名检查，以便 patch 版本 API 变化时给出明确错误，而不是悄悄启动第二个浏览器。当前受限构建环境未预装 browser-use，真实依赖安装和页面联调仍需在目标环境执行。
 
+虚拟环境的激活目录取决于操作系统：Linux/macOS 使用 `.venv/bin`，Windows 使用
+`.venv/Scripts`（Windows 文件系统通常不区分 `Scripts` 的大小写）。
+
+**Linux / macOS（bash/zsh）**
+
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-pip install -e '.[test]'
-playwright install chromium
+python -m pip install --upgrade pip
+python -m pip install -e '.[test]'
+python -m playwright install chromium
 cp .env.example .env
 ```
+
+**Windows PowerShell**
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[test]"
+python -m playwright install chromium
+Copy-Item .env.example .env
+```
+
+如果 PowerShell 当前进程禁止执行激活脚本，可只为当前终端放开后再激活：
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+**Windows CMD**
+
+```bat
+py -3.12 -m venv .venv
+.venv\Scripts\activate.bat
+python -m pip install --upgrade pip
+python -m pip install -e ".[test]"
+python -m playwright install chromium
+copy .env.example .env
+```
+
+激活并不是必须步骤。也可以始终显式调用虚拟环境中的 Python，例如 Windows
+PowerShell 使用 `.\.venv\Scripts\python.exe -m pip install -e ".[test]"`，Linux/macOS
+使用 `./.venv/bin/python -m pip install -e '.[test]'`。
 
 在 `.env` 中配置所选 Browser Use 模型提供方所需的凭据。不要提交 `.env`。
 
@@ -168,6 +207,14 @@ pytest
 - arm 会清空 event、request IDs、错误和所有时间点。timeout 抛出明确异常，不会 silently ignore。
 
 ## 常见问题
+
+### 创建 `.venv` 后没有 `.venv/bin`，只有 `.venv/Scripts`
+
+这是 Windows 的正常目录结构，不代表虚拟环境创建失败。PowerShell 执行
+`.\.venv\Scripts\Activate.ps1`，CMD 执行 `.venv\Scripts\activate.bat`；不要在 Windows
+上执行只适用于 Linux/macOS 的 `source .venv/bin/activate`。如果不想激活，可直接执行
+`.\.venv\Scripts\python.exe -m browser_ai_test.cli list`。激活成功后，`python -c
+"import sys; print(sys.executable)"` 应指向项目的 `.venv\Scripts\python.exe`。
 
 ### 没有检测到 SSE
 
