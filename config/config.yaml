@@ -1,0 +1,26 @@
+browser:
+  cdp_url: "http://localhost:9222"
+  headless: false
+system:
+  url: "https://example.test"
+  iframe_hint: "business iframe"
+  iframe_selector: null
+stream:
+  protocol: "sse"
+  url_keywords:
+    - "/api/chat/stream"
+    - "/api/generate"
+  timeout_seconds: 120
+  done_markers:
+    - "[DONE]"
+    - '"type":"done"'
+    - '"status":"completed"'
+    - '"event":"finish"'
+database:
+  path: "data/results.db"
+runner:
+  continue_on_failure: true
+  case_interval_seconds: 1
+  retry_count: 0
+logging:
+  level: INFO
