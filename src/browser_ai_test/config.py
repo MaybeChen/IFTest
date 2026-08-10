@@ -41,6 +41,13 @@ class LoggingConfig(BaseModel):
     level: str = "INFO"
 
 
+class AgentConfig(BaseModel):
+    """Browser Use execution policy and reusable business instructions."""
+
+    max_steps: int = Field(default=100, gt=0)
+    instructions: list[str] = Field(default_factory=list)
+
+
 class LLMConfig(BaseModel):
     """Model construction settings without storing credentials in YAML."""
 
@@ -58,6 +65,7 @@ class AppConfig(BaseModel):
     browser: BrowserConfig
     system: SystemConfig
     stream: StreamConfig
+    agent: AgentConfig = Field(default_factory=AgentConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     runner: RunnerConfig = Field(default_factory=RunnerConfig)

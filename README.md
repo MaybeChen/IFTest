@@ -113,6 +113,56 @@ llm:
 Model 接口；工厂会把 `model`、`base_url`、从环境变量解析出的 `api_key` 以及 `kwargs`
 传给构造函数。显式的 `model`/`base_url`/`api_key_env` 优先于 `kwargs` 中的同名值。
 
+## 定制 Browser Use 操作步骤
+
+Browser Use 的步骤分成两层：
+
+1. `config/config.yaml` 中的 `agent.instructions` 是所有 Case 共用的前置步骤，适合登录、
+   选择租户、关闭公告等公共操作。
+2. `config/cases.yaml` 中每个 Case 的 `steps` 只对该 Case 生效，适合切换业务模块、选择
+   知识库或设置表单选项。
+
+公共步骤示例：
+
+```yaml
+agent:
+  max_steps: 120
+  instructions:
+    - 如果出现登录页，使用浏览器中已有的登录态继续，不要输入或猜测密码
+    - 关闭欢迎弹窗
+    - 从左侧菜单进入“智能问答”
+```
+
+Case 专属步骤示例：
+
+```yaml
+cases:
+  - id: QA_KB_001
+    name: 产品知识库测试
+    question: "产品 A 的保修期是多久？"
+    steps:
+      - 在知识库下拉框选择“产品手册”
+      - 将回答模式切换为“详细”
+      - 确认输入框为空；如果不为空则先清空
+    expected:
+      type: keyword
+      values: ["保修"]
+```
+
+最终 Prompt 会严格按“公共步骤在前、Case 步骤在后”的顺序编号，然后再追加框架不可覆盖
+的操作：原样输入问题、调用 `arm_stream_monitor`、只点击一次发送、调用
+`wait_stream_done`、从页面读取答案。自定义步骤不能要求跳过网络监听，也不能让 Agent
+自己回答问题。
+
+`agent.max_steps` 是 Browser Use 单个 Case 的最大操作步数，用于防止 Agent 在页面上
+无限循环。它不是业务 timeout，流等待时间仍由 `stream.timeout_seconds` 或 Case 的
+`timeout_seconds` 控制。
+
+这里的 `instructions`/`steps` 是给 Browser Use 的语义步骤，Agent 会根据页面结构寻找
+控件。如果必须保证精确 selector、固定参数或原子操作，应仿照
+`src/browser_ai_test/agent/tools.py` 注册新的自定义 Tool，再在步骤中明确要求调用该 Tool；
+不要期待自然语言步骤具有 Playwright 脚本一样的确定性。
+
 ## 启动同一个 Chrome/CDP
 
 Playwright 和 Browser Use 都连接 `browser.cdp_url`，不会各自启动浏览器。
@@ -147,6 +197,8 @@ Chrome 版本若要求远程调试来源限制，请按组织安全策略显式�
 - `llm.provider` / `llm.model`：模型提供方和模型名；私有模型参见上一节。
 - `llm.base_url` / `llm.api_key_env`：自定义网关和密钥环境变量名。
 - `llm.class_path` / `llm.kwargs`：完全自定义模型适配器及其扩展参数。
+- `agent.instructions`：所有 Case 共用的 Browser Use 前置步骤。
+- `agent.max_steps`：单 Case 最大 Agent 操作步数，不是网络 timeout。
 - `system.iframe_selector`：可选；有值时 Agent 优先使用，空值时结合 `iframe_hint` 做语义识别，因而不是唯一硬编码定位方式。
 - `stream.url_keywords`：目标业务请求 URL 的稳定片段。只有匹配项会被统计，页面其他网络请求不会干扰结果。
 - `stream.done_markers`：SSE/WS payload 中代表业务完成的标记；任意一个命中即完成。
@@ -167,6 +219,8 @@ cases:
   - id: QA_001
     name: 日本首都测试
     question: "日本的首都是哪里？"
+    steps:
+      - 确认当前位于问答页面
     expected:
       type: keyword       # keyword 或 regex
       values: [东京]

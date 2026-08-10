@@ -8,7 +8,7 @@ from typing import Any
 from browser_ai_test.agent.prompts import build_task
 from browser_ai_test.agent.tools import create_monitor_tools
 from browser_ai_test.browser.session import SharedBrowserSession
-from browser_ai_test.config import SystemConfig
+from browser_ai_test.config import AgentConfig, SystemConfig
 from browser_ai_test.models import AgentExecutionResult, TestCase
 
 
@@ -20,9 +20,10 @@ class AgentRun:
 
 
 class AgentExecutor:
-    def __init__(self, session: SharedBrowserSession, system: SystemConfig, default_timeout: float, llm: Any | None = None) -> None:
+    def __init__(self, session: SharedBrowserSession, system: SystemConfig, agent: AgentConfig, default_timeout: float, llm: Any | None = None) -> None:
         self.session = session
         self.system = system
+        self.agent_config = agent
         self.default_timeout = default_timeout
         self.llm = llm
 
@@ -35,6 +36,7 @@ class AgentExecutor:
             "task": build_task(
                 case,
                 self.system,
+                self.agent_config,
                 case.stream.protocol or self.session.stream_config.protocol,
                 case.timeout_seconds or self.default_timeout,
             ),
@@ -50,7 +52,11 @@ class AgentExecutor:
         else:
             raise RuntimeError("当前 browser-use Agent 缺少结构化输出参数")
         started = time.monotonic()
-        history = await Agent(**kwargs).run()
+        browser_agent = Agent(**kwargs)
+        run_signature = inspect.signature(browser_agent.run)
+        if "max_steps" not in run_signature.parameters:
+            raise RuntimeError("当前 browser-use Agent.run 不支持 max_steps 参数")
+        history = await browser_agent.run(max_steps=self.agent_config.max_steps)
         duration = time.monotonic() - started
         raw = getattr(history, "structured_output", None)
         if callable(raw):

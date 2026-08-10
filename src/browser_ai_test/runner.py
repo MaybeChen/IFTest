@@ -34,6 +34,7 @@ class TestRunner:
                 executor = AgentExecutor(
                     session,
                     self.config.system,
+                    self.config.agent,
                     self.config.stream.timeout_seconds,
                     llm=llm,
                 )

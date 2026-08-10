@@ -15,6 +15,10 @@ llm:
   class_path: null
   kwargs:
     temperature: 0
+agent:
+  max_steps: 100
+  # 每个 Case 都会执行的公共步骤，例如登录、切换租户或关闭弹窗。
+  instructions: []
 stream:
   protocol: "sse"
   url_keywords:

@@ -34,6 +34,7 @@ class TestCase(BaseModel):
     id: str
     name: str
     question: str
+    steps: list[str] = Field(default_factory=list)
     expected: ExpectedConfig
     stream: CaseStreamConfig = Field(default_factory=CaseStreamConfig)
     timeout_seconds: float | None = Field(default=None, gt=0)
