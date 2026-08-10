@@ -5,6 +5,16 @@ system:
   url: "https://example.test"
   iframe_hint: "business iframe"
   iframe_selector: null
+llm:
+  # browser_use/openai/openai_compatible/anthropic/google/custom
+  provider: browser_use
+  model: null
+  base_url: null
+  api_key_env: null
+  # provider=custom 时填写，例如 "my_package.models.MyBrowserUseModel"
+  class_path: null
+  kwargs:
+    temperature: 0
 stream:
   protocol: "sse"
   url_keywords:

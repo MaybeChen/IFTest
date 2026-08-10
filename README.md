@@ -30,6 +30,50 @@ cp .env.example .env
 
 在 `.env` 中配置所选 Browser Use 模型提供方所需的凭据。不要提交 `.env`。
 
+## 模型配置（包括私有/自定义模型）
+
+`llm.provider` 支持 `browser_use`、`openai`、`openai_compatible`、
+`anthropic`、`google` 和 `custom`。Runner 在创建 Agent 前通过工厂构造一次模型并注入
+`AgentExecutor`，不再在 Executor 内硬编码 `ChatBrowserUse`。
+
+OpenAI-compatible 私有网关示例：
+
+```yaml
+llm:
+  provider: openai_compatible
+  model: "company-agent-model"
+  base_url: "https://llm-gateway.example/v1"
+  api_key_env: "CUSTOM_LLM_API_KEY"
+  kwargs:
+    temperature: 0
+    max_retries: 3
+```
+
+```bash
+export CUSTOM_LLM_API_KEY="..."
+```
+
+API Key 只通过 `api_key_env` 指定的环境变量读取，不应直接写入 YAML。若环境变量缺失，
+Runner 会在打开浏览器执行 Case 前给出明确的模型配置错误。
+
+如果模型不是 OpenAI-compatible，可提供自己的 Browser Use 模型适配器：
+
+```yaml
+llm:
+  provider: custom
+  class_path: "my_company.browser_models.PrivateChatModel"
+  model: "private-v2"
+  base_url: "http://model-service.internal"
+  api_key_env: "PRIVATE_MODEL_TOKEN"
+  kwargs:
+    tenant: "qa"
+    request_timeout: 90
+```
+
+`class_path` 必须指向一个可导入的类。该类需要实现当前 browser-use 版本要求的 Chat
+Model 接口；工厂会把 `model`、`base_url`、从环境变量解析出的 `api_key` 以及 `kwargs`
+传给构造函数。显式的 `model`/`base_url`/`api_key_env` 优先于 `kwargs` 中的同名值。
+
 ## 启动同一个 Chrome/CDP
 
 Playwright 和 Browser Use 都连接 `browser.cdp_url`，不会各自启动浏览器。
@@ -61,6 +105,9 @@ Chrome 版本若要求远程调试来源限制，请按组织安全策略显式�
 编辑 `config/config.yaml`：
 
 - `system.url`：被测主系统 URL。
+- `llm.provider` / `llm.model`：模型提供方和模型名；私有模型参见上一节。
+- `llm.base_url` / `llm.api_key_env`：自定义网关和密钥环境变量名。
+- `llm.class_path` / `llm.kwargs`：完全自定义模型适配器及其扩展参数。
 - `system.iframe_selector`：可选；有值时 Agent 优先使用，空值时结合 `iframe_hint` 做语义识别，因而不是唯一硬编码定位方式。
 - `stream.url_keywords`：目标业务请求 URL 的稳定片段。只有匹配项会被统计，页面其他网络请求不会干扰结果。
 - `stream.done_markers`：SSE/WS payload 中代表业务完成的标记；任意一个命中即完成。
@@ -148,6 +195,6 @@ AI 页面常有遥测、心跳和共享 WebSocket，网络可能永不 idle；�
 
 ## 当前边界与扩展
 
-没有真实业务 URL、Chrome 会话和模型 API 凭据时，只能验证配置、Validator、统计、SQLite 和 CDP 状态机，不能声称验证了真实页面链路。接入时通常只需修改 `system.url`、可选 `system.iframe_selector`、`stream.url_keywords`、`stream.done_markers`、`stream.protocol` 和 `config/cases.yaml`。
+没有真实业务 URL、Chrome 会话和模型 API 凭据时，只能验证配置、模型工厂、Validator、统计、SQLite 和 CDP 状态机，不能声称验证了真实页面链路。接入时通常只需修改 `llm`、`system.url`、可选 `system.iframe_selector`、`stream.url_keywords`、`stream.done_markers`、`stream.protocol` 和 `config/cases.yaml`。
 
 后续可在清晰边界上增加 PostgreSQL repository、Grafana/Prometheus exporter、HTML report、LLM Judge、截图/录像/trace、CI 和多浏览器 worker；MVP 刻意不并发共享 monitor。

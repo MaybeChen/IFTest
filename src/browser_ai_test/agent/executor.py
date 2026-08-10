@@ -26,14 +26,11 @@ class AgentExecutor:
         self.default_timeout = default_timeout
         self.llm = llm
 
-    def _default_llm(self) -> Any:
-        from browser_use import ChatBrowserUse
-        return ChatBrowserUse()
-
     async def execute(self, case: TestCase) -> AgentRun:
         from browser_use import Agent
 
-        llm = self.llm or self._default_llm()
+        if self.llm is None:
+            raise RuntimeError("AgentExecutor 必须注入已配置的模型实例")
         kwargs: dict[str, Any] = {
             "task": build_task(
                 case,
@@ -41,7 +38,7 @@ class AgentExecutor:
                 case.stream.protocol or self.session.stream_config.protocol,
                 case.timeout_seconds or self.default_timeout,
             ),
-            "llm": llm,
+            "llm": self.llm,
             "browser_session": self.session.browser_use_session,
             "tools": create_monitor_tools(self.session.monitor),
         }

@@ -5,6 +5,7 @@ import logging
 from datetime import datetime, timezone
 
 from browser_ai_test.agent.executor import AgentExecutor
+from browser_ai_test.agent.model_factory import create_llm
 from browser_ai_test.browser.session import SharedBrowserSession
 from browser_ai_test.config import AppConfig
 from browser_ai_test.metrics.collector import MetricsCollector
@@ -28,8 +29,14 @@ class TestRunner:
         self.database.start_run(run_id, started.isoformat())
         collector = MetricsCollector()
         try:
+            llm = create_llm(self.config.llm)
             async with self.session_factory(self.config.browser, self.config.stream) as session:
-                executor = AgentExecutor(session, self.config.system, self.config.stream.timeout_seconds)
+                executor = AgentExecutor(
+                    session,
+                    self.config.system,
+                    self.config.stream.timeout_seconds,
+                    llm=llm,
+                )
                 for index, case in enumerate(cases, 1):
                     result = await self._run_case(run_id, case, executor, session)
                     collector.add(result)

@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
-import yaml
 from pydantic import BaseModel, Field
 
 from .models import Protocol, TestCase
@@ -42,21 +41,40 @@ class LoggingConfig(BaseModel):
     level: str = "INFO"
 
 
+class LLMConfig(BaseModel):
+    """Model construction settings without storing credentials in YAML."""
+
+    provider: Literal[
+        "browser_use", "openai", "openai_compatible", "anthropic", "google", "custom"
+    ] = "browser_use"
+    model: str | None = None
+    base_url: str | None = None
+    api_key_env: str | None = None
+    class_path: str | None = None
+    kwargs: dict[str, Any] = Field(default_factory=dict)
+
+
 class AppConfig(BaseModel):
     browser: BrowserConfig
     system: SystemConfig
     stream: StreamConfig
+    llm: LLMConfig = Field(default_factory=LLMConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     runner: RunnerConfig = Field(default_factory=RunnerConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
+    import yaml
+
     with path.open(encoding="utf-8") as handle:
         return yaml.safe_load(handle) or {}
 
 
 def load_config(path: str | Path = "config/config.yaml") -> AppConfig:
+    from dotenv import load_dotenv
+
+    load_dotenv()
     data = _read_yaml(Path(path))
     if cdp_url := os.getenv("BROWSER_AI_TEST_CDP_URL"):
         data.setdefault("browser", {})["cdp_url"] = cdp_url
