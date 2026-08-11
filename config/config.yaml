@@ -1,0 +1,47 @@
+browser:
+  cdp_url: "http://127.0.0.1:9222"
+  headless: false
+  cdp_timeout_seconds: 10
+  bypass_proxy_for_loopback: true
+system:
+  url: "https://example.test"
+  iframe_hint: "business iframe"
+  iframe_selector: null
+llm:
+  # browser_use/openai/openai_compatible/anthropic/google/custom
+  provider: browser_use
+  model: null
+  base_url: null
+  api_key_env: null
+  # provider=custom 时填写，例如 "my_package.models.MyBrowserUseModel"
+  class_path: null
+  kwargs:
+    temperature: 0
+agent:
+  max_steps: 100
+  # 每个 Case 都会执行的公共步骤，例如登录、切换租户或关闭弹窗。
+  instructions: []
+upload:
+  directory: "data/uploads"
+  input_selector: "input[type='file']"
+  target: auto
+  timeout_ms: 10000
+stream:
+  protocol: "sse"
+  url_keywords:
+    - "/api/chat/stream"
+    - "/api/generate"
+  timeout_seconds: 120
+  done_markers:
+    - "[DONE]"
+    - '"type":"done"'
+    - '"status":"completed"'
+    - '"event":"finish"'
+database:
+  path: "data/results.db"
+runner:
+  continue_on_failure: true
+  case_interval_seconds: 1
+  retry_count: 0
+logging:
+  level: INFO
