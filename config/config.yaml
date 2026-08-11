@@ -1,0 +1,53 @@
+browser:
+  cdp_url: "http://127.0.0.1:9222"
+  headless: false
+  cdp_timeout_seconds: 10
+  bypass_proxy_for_loopback: true
+system:
+  url: "https://example.test"
+  iframe_hint: "business iframe"
+  iframe_selector: null
+upload:
+  directory: "data/uploads"
+  input_selector: "input[type='file']"
+  target: auto
+  timeout_ms: 10000
+workflow:
+  login:
+    enabled: false
+    username_env: TEST_USERNAME
+    password_env: TEST_PASSWORD
+    username_selector: "input[name='username']"
+    password_selector: "input[name='password']"
+    submit_selector: "button[type='submit']"
+  # 在这里编辑固定 Playwright 初始化步骤：点击 testcc、新增 auto_api、打开 AI 助手等。
+  # 每条步骤支持 action/target/selector/value/timeout_ms；完整示例见 README。
+  setup_steps: []
+  question_selector: "textarea"
+  send_selector: "button[type='submit']"
+  answer_selector: "[data-testid='answer']"
+  target: iframe
+  refresh_action: reload
+  refresh_selector: null
+  ui_timeout_ms: 10000
+stream:
+  protocol: "sse"
+  url_keywords:
+    - "/api/chat/stream"
+    - "/api/generate"
+  timeout_seconds: 120
+  done_markers:
+    - "[DONE]"
+    - '"type":"done"'
+    - '"status":"completed"'
+    - '"event":"finish"'
+database:
+  path: "data/results.db"
+runner:
+  continue_on_failure: true
+  case_interval_seconds: 1
+  retry_count: 0
+logging:
+  level: INFO
+report:
+  html_directory: "reports"
