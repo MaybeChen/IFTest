@@ -329,6 +329,16 @@ google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/browser-ai-test
   --remote-debugging-port=9222 --user-data-dir="$env:TEMP\browser-ai-test"
 ```
 
+在存在系统代理/公司代理的 Windows 环境中，建议显式绑定回环地址：
+
+```powershell
+& "$env:ProgramFiles\Google\Chrome\Application\chrome.exe" `
+  --remote-debugging-address=127.0.0.1 `
+  --remote-debugging-port=9222 `
+  --remote-allow-origins=* `
+  --user-data-dir="$env:TEMP\browser-ai-test"
+```
+
 Chrome 版本若要求远程调试来源限制，请按组织安全策略显式配置；不要将调试端口暴露到公网。
 
 ## 主配置
@@ -403,6 +413,59 @@ pytest
 - arm 会清空 event、request IDs、错误和所有时间点。timeout 抛出明确异常，不会 silently ignore。
 
 ## 常见问题
+
+### Browser Use 访问 `/json/version` 返回 `504 Gateway Time-out`
+
+如果日志包含：
+
+```text
+GET http://localhost:9222/json/version "HTTP/1.1 504 Gateway Time-out"
+JSONDecodeError: Expecting value: line 1 column 1
+Root CDP client not initialized
+```
+
+根因通常不是 JSON，而是 `localhost:9222` 被系统或公司 HTTP 代理转发到了网关；网关返回
+504 HTML，browser-use 再把 HTML 当作 CDP JSON 解析，才出现 `JSONDecodeError`。开头的
+“Newer version available” 只是版本提示，与这次 CDP 失败无关。
+
+新版工程默认使用 `http://127.0.0.1:9222`，并在连接前完成两件事：
+
+1. 将 `localhost`、`127.0.0.1`、`::1` 合并进 `NO_PROXY` 和 `no_proxy`，使 browser-use
+   使用的 httpx 不经过代理；
+2. 使用明确禁用代理的请求预检 `/json/version`，确认它返回包含
+   `webSocketDebuggerUrl` 的 JSON。预检失败会直接报告 CDP/代理问题，不再暴露含糊的
+   `JSONDecodeError`。
+
+对应配置如下：
+
+```yaml
+browser:
+  cdp_url: "http://127.0.0.1:9222"
+  cdp_timeout_seconds: 10
+  bypass_proxy_for_loopback: true
+```
+
+运行测试前可在同一个 PowerShell 窗口检查：
+
+```powershell
+$env:NO_PROXY = "localhost,127.0.0.1,::1"
+$env:no_proxy = $env:NO_PROXY
+curl.exe --noproxy "*" http://127.0.0.1:9222/json/version
+```
+
+也可以直接运行项目内置诊断，它不会启动 Agent 或执行 Case：
+
+```powershell
+browser-ai-test doctor
+```
+
+正确响应应是 JSON，并包含 `webSocketDebuggerUrl`。如果直连仍失败：
+
+- 确认 Chrome 进程确实使用 `--remote-debugging-port=9222` 启动；
+- 使用独立的 `--user-data-dir`，避免已有 Chrome 进程吞掉启动参数；
+- 确认本机防火墙或安全软件没有阻止 9222；
+- 确认配置没有写成带 Markdown 的 `[http://...](http://...)`，必须是纯 URL；
+- 不要把 9222 暴露到公网。
 
 ### 创建 `.venv` 后没有 `.venv/bin`，只有 `.venv/Scripts`
 

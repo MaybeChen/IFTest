@@ -10,8 +10,10 @@ from .models import Protocol, TestCase
 
 
 class BrowserConfig(BaseModel):
-    cdp_url: str = "http://localhost:9222"
+    cdp_url: str = "http://127.0.0.1:9222"
     headless: bool = False
+    cdp_timeout_seconds: float = Field(default=10, gt=0)
+    bypass_proxy_for_loopback: bool = True
 
 
 class SystemConfig(BaseModel):

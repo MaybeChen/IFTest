@@ -1,6 +1,8 @@
 browser:
-  cdp_url: "http://localhost:9222"
+  cdp_url: "http://127.0.0.1:9222"
   headless: false
+  cdp_timeout_seconds: 10
+  bypass_proxy_for_loopback: true
 system:
   url: "https://example.test"
   iframe_hint: "business iframe"

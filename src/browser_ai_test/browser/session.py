@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import logging
 from types import TracebackType
@@ -7,8 +8,9 @@ from typing import Any
 
 from playwright.async_api import Browser, BrowserContext, CDPSession, Page, Playwright, async_playwright
 
-from browser_ai_test.config import BrowserConfig, StreamConfig
+from browser_ai_test.browser.cdp import ensure_loopback_no_proxy, fetch_cdp_version
 from browser_ai_test.browser.stream_monitor import StreamMonitor
+from browser_ai_test.config import BrowserConfig, StreamConfig
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,11 @@ class SharedBrowserSession:
         self.monitor = StreamMonitor(stream.url_keywords, stream.done_markers)
 
     async def start(self) -> "SharedBrowserSession":
+        if self.config.bypass_proxy_for_loopback:
+            ensure_loopback_no_proxy(self.config.cdp_url)
+        await asyncio.to_thread(
+            fetch_cdp_version, self.config.cdp_url, self.config.cdp_timeout_seconds
+        )
         self.playwright = await async_playwright().start()
         try:
             self.browser = await self.playwright.chromium.connect_over_cdp(self.config.cdp_url)

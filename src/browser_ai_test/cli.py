@@ -10,6 +10,11 @@ from rich.console import Console
 from rich.table import Table
 
 from browser_ai_test.config import load_cases, load_config
+from browser_ai_test.browser.cdp import (
+    CDPConnectionError,
+    ensure_loopback_no_proxy,
+    fetch_cdp_version,
+)
 from browser_ai_test.metrics.database import ResultsDatabase
 from browser_ai_test.runner import TestRunner
 
@@ -26,6 +31,26 @@ def list_cases(cases: CasesOption = Path("config/cases.yaml")) -> None:
     for case in load_cases(cases):
         table.add_row(case.id, case.name, case.expected.type)
     console.print(table)
+
+
+@app.command()
+def doctor(config: ConfigOption = Path("config/config.yaml")) -> None:
+    """在启动 Agent 前直连检查 Chrome CDP，并绕过本机 HTTP 代理。"""
+    settings = load_config(config)
+    if settings.browser.bypass_proxy_for_loopback:
+        ensure_loopback_no_proxy(settings.browser.cdp_url)
+    try:
+        version = fetch_cdp_version(
+            settings.browser.cdp_url, settings.browser.cdp_timeout_seconds
+        )
+    except CDPConnectionError as exc:
+        console.print(f"[red]CDP FAIL[/]: {exc}")
+        raise typer.Exit(code=1) from exc
+    console.print(
+        "[green]CDP PASS[/]\n"
+        f"Browser: {version.get('Browser', '-')}\n"
+        f"WebSocket: {version['webSocketDebuggerUrl']}"
+    )
 
 
 @app.command()
