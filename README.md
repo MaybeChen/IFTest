@@ -180,6 +180,61 @@ TEST_PASSWORD=your-password
 
 ## Playwright 初始化步骤
 
+### 具体在哪个文件编辑？
+
+日常接入**不需要修改 Python 源码**，主要编辑两个 YAML 文件：
+
+| 内容 | 编辑文件 | 配置位置 |
+|---|---|---|
+| 登录 selector、testcc 卡片、新增 API、`auto_api`、`.ai-toggle-btn` | `config/config.yaml` | `workflow.login`、`workflow.setup_steps` |
+| 问题输入框、发送按钮、答案区域、刷新按钮 | `config/config.yaml` | `workflow.question_selector`、`send_selector`、`answer_selector`、`refresh_*` |
+| 文件目录和上传 input | `config/config.yaml` | `upload` |
+| SSE/WS/HTTP URL 和完成标记 | `config/config.yaml` | `stream` |
+| 每条用例的文件、问题和标准答案 | `config/cases.yaml` | `cases[]` |
+
+也就是说，你描述的固定页面步骤应直接写在：
+
+```text
+config/config.yaml -> workflow.setup_steps
+```
+
+例如：
+
+```yaml
+workflow:
+  setup_steps:
+    - action: click
+      target: main
+      selector: "[data-product-name='testcc']"
+    - action: click
+      target: main
+      selector: "[data-testid='add-api']"
+    - action: fill
+      target: main
+      selector: "input[name='apiName']"
+      value: "auto_api"
+    - action: click
+      target: main
+      selector: "[data-testid='save-api']"
+    - action: click
+      target: main
+      selector: ".ai-toggle-btn"
+```
+
+只有需要新增 YAML DSL 尚未支持的动作类型时，才修改源码：
+
+```text
+src/browser_ai_test/browser/playwright_steps.py
+```
+
+完整问答循环（上传、输入、arm CDP、发送、等待、读取答案、刷新）的编排实现在：
+
+```text
+src/browser_ai_test/browser/fixed_workflow.py
+```
+
+通常不要为单个业务系统修改这两个 Python 文件；优先通过 YAML selector 完成接入。
+
 `workflow.setup_steps` 在整个 Run 开始时只执行一次，支持：
 
 - `click`

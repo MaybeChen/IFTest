@@ -20,7 +20,8 @@ workflow:
     username_selector: "input[name='username']"
     password_selector: "input[name='password']"
     submit_selector: "button[type='submit']"
-  # 固定模式初始化步骤：点击 testcc 卡片、新增 API、打开 AI 助手等。
+  # 在这里编辑固定 Playwright 初始化步骤：点击 testcc、新增 auto_api、打开 AI 助手等。
+  # 每条步骤支持 action/target/selector/value/timeout_ms；完整示例见 README。
   setup_steps: []
   question_selector: "textarea"
   send_selector: "button[type='submit']"
