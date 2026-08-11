@@ -144,12 +144,23 @@ workflow:
       locator_type: text
       selector: "Auto_EVA存量BES"
       exact: false
+      timeout_ms: 30000
+    - action: wait_visible
+      target: main
+      locator_type: role
+      selector: button
+      name: "新增"
+      exact: false
+      nth: 0
+      timeout_ms: 30000
     - action: click
       target: main
       locator_type: role
       selector: button
       name: "新增"
-      exact: true
+      exact: false
+      nth: 0
+      timeout_ms: 30000
     - action: fill
       target: main
       selector: ".el-form-item:has-text('API名称') input"

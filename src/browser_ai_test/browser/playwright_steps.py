@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from browser_ai_test.models import PlaywrightStep
+
+logger = logging.getLogger(__name__)
 
 
 class PlaywrightStepError(RuntimeError):
@@ -26,6 +29,10 @@ async def execute_playwright_steps(
         else:
             root = page
         locator = _resolve_locator(root, step)
+        logger.info(
+            "Playwright step %s/%s start: action=%s target=%s locator=%s selector=%r",
+            index, len(steps), step.action, step.target, step.locator_type, step.selector,
+        )
         try:
             if step.action == "click":
                 await locator.click(timeout=step.timeout_ms)
@@ -46,6 +53,10 @@ async def execute_playwright_steps(
                 f"Playwright step {index} 执行失败: {step.action} {step.selector!r}: {exc}"
             ) from exc
         completed.append(f"{index}:{step.action}:{step.selector}")
+        logger.info(
+            "Playwright step %s/%s completed: action=%s selector=%r",
+            index, len(steps), step.action, step.selector,
+        )
     return completed
 
 
