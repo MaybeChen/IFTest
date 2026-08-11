@@ -3,6 +3,9 @@ browser:
   headless: false
   cdp_timeout_seconds: 10
   bypass_proxy_for_loopback: true
+execution:
+  # browser_use 使用大模型；playwright 使用完全固定脚本，不创建模型或 Browser Use Agent。
+  mode: browser_use
 system:
   url: "https://example.test"
   iframe_hint: "business iframe"
@@ -26,6 +29,23 @@ upload:
   input_selector: "input[type='file']"
   target: auto
   timeout_ms: 10000
+workflow:
+  login:
+    enabled: false
+    username_env: TEST_USERNAME
+    password_env: TEST_PASSWORD
+    username_selector: "input[name='username']"
+    password_selector: "input[name='password']"
+    submit_selector: "button[type='submit']"
+  # 固定模式初始化步骤：点击 testcc 卡片、新增 API、打开 AI 助手等。
+  setup_steps: []
+  question_selector: "textarea"
+  send_selector: "button[type='submit']"
+  answer_selector: "[data-testid='answer']"
+  target: iframe
+  refresh_action: reload
+  refresh_selector: null
+  ui_timeout_ms: 10000
 stream:
   protocol: "sse"
   url_keywords:
@@ -45,3 +65,5 @@ runner:
   retry_count: 0
 logging:
   level: INFO
+report:
+  html_directory: "reports"

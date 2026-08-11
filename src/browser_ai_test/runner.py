@@ -3,15 +3,18 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 from browser_ai_test.agent.executor import AgentExecutor
 from browser_ai_test.agent.model_factory import create_llm
 from browser_ai_test.browser.session import SharedBrowserSession
+from browser_ai_test.browser.fixed_workflow import FixedPlaywrightExecutor
 from browser_ai_test.config import AppConfig
 from browser_ai_test.metrics.collector import MetricsCollector
 from browser_ai_test.metrics.database import ResultsDatabase
 from browser_ai_test.models import CaseResult, ErrorType, TestCase
 from browser_ai_test.report.console import render_case, render_summary
+from browser_ai_test.report.html import write_html_report
 from browser_ai_test.validator import get_validator
 
 logger = logging.getLogger(__name__)
@@ -29,16 +32,25 @@ class TestRunner:
         self.database.start_run(run_id, started.isoformat())
         collector = MetricsCollector()
         try:
-            llm = create_llm(self.config.llm)
-            async with self.session_factory(self.config.browser, self.config.stream) as session:
-                executor = AgentExecutor(
-                    session,
-                    self.config.system,
-                    self.config.agent,
-                    self.config.upload,
-                    self.config.stream.timeout_seconds,
-                    llm=llm,
-                )
+            llm = create_llm(self.config.llm) if self.config.execution.mode == "browser_use" else None
+            async with self.session_factory(
+                self.config.browser,
+                self.config.stream,
+                enable_browser_use=self.config.execution.mode == "browser_use",
+            ) as session:
+                executor: Any
+                if self.config.execution.mode == "playwright":
+                    executor = FixedPlaywrightExecutor(
+                        session.page, session.monitor, self.config.system,
+                        self.config.upload, self.config.workflow,
+                        self.config.stream.timeout_seconds,
+                    )
+                    await executor.initialize()
+                else:
+                    executor = AgentExecutor(
+                        session, self.config.system, self.config.agent,
+                        self.config.upload, self.config.stream.timeout_seconds, llm=llm,
+                    )
                 for index, case in enumerate(cases, 1):
                     result = await self._run_case(run_id, case, executor, session)
                     collector.add(result)
@@ -51,10 +63,15 @@ class TestRunner:
         finally:
             passed = sum(item.passed for item in collector.results)
             self.database.finish_run(run_id, datetime.now(timezone.utc).isoformat(), len(collector.results), passed)
-        render_summary(run_id, collector.statistics())
+        statistics = collector.statistics()
+        render_summary(run_id, statistics)
+        report_path = write_html_report(
+            run_id, collector.results, statistics, self.config.report.html_directory
+        )
+        logger.info("HTML report: %s", report_path)
         return run_id, collector
 
-    async def _run_case(self, run_id: str, case: TestCase, executor: AgentExecutor, session: SharedBrowserSession) -> CaseResult:
+    async def _run_case(self, run_id: str, case: TestCase, executor: Any, session: SharedBrowserSession) -> CaseResult:
         started = datetime.now(timezone.utc)
         protocol = case.stream.protocol or self.config.stream.protocol
         session.monitor.arm(protocol)

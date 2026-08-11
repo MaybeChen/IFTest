@@ -2,21 +2,13 @@ from __future__ import annotations
 
 import inspect
 import time
-from dataclasses import dataclass
 from typing import Any
 
 from browser_ai_test.agent.prompts import build_task
 from browser_ai_test.agent.tools import create_monitor_tools
 from browser_ai_test.browser.session import SharedBrowserSession
 from browser_ai_test.config import AgentConfig, SystemConfig, UploadConfig
-from browser_ai_test.models import AgentExecutionResult, TestCase
-
-
-@dataclass(slots=True)
-class AgentRun:
-    result: AgentExecutionResult
-    steps: int
-    duration_seconds: float
+from browser_ai_test.models import AgentExecutionResult, AgentRun, TestCase
 
 
 class AgentExecutor:

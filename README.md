@@ -305,6 +305,124 @@ cases:
 input，并把 `upload.input_selector` 改为稳定 selector。Playwright 可以直接对隐藏 file
 input 调用 `set_input_files()`，通常不需要操作系统文件选择窗口。
 
+## 不使用大模型：完全固定的 Playwright 流程
+
+可以。将 `execution.mode` 设置为 `playwright` 后，Runner 不会创建 LLM，也不会创建或运行
+Browser Use Agent；Playwright 负责登录、初始化页面、逐 Case 上传/提问/发送/读取答案和
+刷新，CDP StreamMonitor 仍负责判断问答何时真正完成。
+
+下面是与你描述的流程对应的配置模板。selector 必须替换成实际页面的稳定 selector：
+
+```yaml
+execution:
+  mode: playwright
+
+system:
+  url: "https://your-system.example"
+  iframe_selector: "#business-frame"
+
+workflow:
+  login:
+    enabled: true
+    detect_selector: "#login-form"
+    username_env: TEST_USERNAME
+    password_env: TEST_PASSWORD
+    username_selector: "input[name='username']"
+    password_selector: "input[name='password']"
+    submit_selector: "button[type='submit']"
+
+  setup_steps:
+    # 1. 点击产品列表中 testcc 的卡片
+    - action: click
+      target: main
+      selector: "[data-product-name='testcc']"
+    # 2. 点击新增
+    - action: click
+      target: main
+      selector: "[data-testid='add-api']"
+    # 3. 输入 API 名称 auto_api
+    - action: fill
+      target: main
+      selector: "input[name='apiName']"
+      value: "auto_api"
+    # 4. 保存/确定
+    - action: click
+      target: main
+      selector: "[data-testid='save-api']"
+    # 5. 打开 AI 助手
+    - action: click
+      target: main
+      selector: ".ai-toggle-btn"
+
+  question_selector: "textarea[data-testid='question-input']"
+  send_selector: "button[data-testid='send-question']"
+  answer_selector: "[data-testid='assistant-answer']:last-child"
+  target: iframe
+  ui_timeout_ms: 15000
+
+  # 每个 Case 结束后刷新。若页面有专用“新会话”按钮，建议改为 click。
+  refresh_action: reload       # reload / click / none
+  refresh_selector: null
+
+upload:
+  directory: "D:/browser-ai-test-files"
+  input_selector: "input[type='file']"
+  target: iframe
+  timeout_ms: 10000
+
+report:
+  html_directory: "reports"
+```
+
+用户名密码放在 `.env`，而不是 YAML：
+
+```dotenv
+TEST_USERNAME=your-user
+TEST_PASSWORD=your-password
+```
+
+Case 仍然只需要文件、问题和标准答案：
+
+```yaml
+cases:
+  - id: FILE_QA_001
+    name: 文件问答 001
+    file: "产品说明书.pdf"
+    question: "请总结产品的主要功能"
+    expected:
+      type: keyword
+      values: ["功能一", "功能二"]
+      match_mode: all
+    stream:
+      protocol: sse
+    timeout_seconds: 120
+```
+
+固定模式的执行边界为：
+
+```text
+一次性初始化：访问 URL -> 登录（仅登录界面可见时） -> testcc -> 新增 API
+             -> 输入 auto_api -> 保存 -> 点击 .ai-toggle-btn
+
+逐 Case 循环：上传 file -> 填入 question -> arm CDP -> 点击发送
+             -> 等待真实 done -> 读取 answer_selector -> Validator
+             -> 保存 SQLite -> 刷新 -> 下一个 Case
+
+Run 结束：汇总成功率/TTFT/Stream/Error -> 生成 reports/<run_id>.html
+```
+
+`refresh_action: reload` 会刷新当前 URL。如果刷新后应用会退回产品列表，建议使用页面的
+“新会话/清空对话”按钮并配置：
+
+```yaml
+workflow:
+  refresh_action: click
+  refresh_selector: "button[data-testid='new-chat']"
+```
+
+这样不会重复创建 `auto_api`。HTML 中包含每个 Case 的 UI/网络/答案状态、页面答案、TTFT、
+Stream 耗时和错误详情；页面答案会 HTML escape，报告默认写入 `reports/`。
+
 ## 启动同一个 Chrome/CDP
 
 Playwright 和 Browser Use 都连接 `browser.cdp_url`，不会各自启动浏览器。

@@ -121,8 +121,10 @@ class StreamMonitor:
         try:
             await asyncio.wait_for(self.done_event.wait(), timeout_seconds)
         except TimeoutError as exc:
+            self.armed = False
             kind = "未检测到目标网络请求" if not self.request_ids else "未收到业务完成信号"
             raise StreamTimeoutError(f"{timeout_seconds:g} seconds 内{kind}") from exc
+        self.armed = False
         if self.network_error:
             raise StreamMonitorError(self.network_error)
         if self.request_start_ts is None or self.done_ts is None:

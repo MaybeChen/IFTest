@@ -18,9 +18,10 @@ logger = logging.getLogger(__name__)
 class SharedBrowserSession:
     """Connect Playwright and browser-use to one externally managed Chrome."""
 
-    def __init__(self, browser: BrowserConfig, stream: StreamConfig) -> None:
+    def __init__(self, browser: BrowserConfig, stream: StreamConfig, enable_browser_use: bool = True) -> None:
         self.config = browser
         self.stream_config = stream
+        self.enable_browser_use = enable_browser_use
         self.playwright: Playwright | None = None
         self.browser: Browser | None = None
         self.context: BrowserContext | None = None
@@ -42,7 +43,8 @@ class SharedBrowserSession:
             self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
             self.cdp_session = await self.context.new_cdp_session(self.page)
             await self.monitor.attach(self.cdp_session)
-            self.browser_use_session = self._make_browser_use_session()
+            if self.enable_browser_use:
+                self.browser_use_session = self._make_browser_use_session()
             return self
         except Exception:
             await self.close()

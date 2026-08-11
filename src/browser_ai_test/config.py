@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from .models import Protocol, TestCase
+from .models import PlaywrightStep, Protocol, TestCase
 
 
 class BrowserConfig(BaseModel):
@@ -27,6 +27,37 @@ class UploadConfig(BaseModel):
     input_selector: str = "input[type='file']"
     target: Literal["main", "iframe", "auto"] = "auto"
     timeout_ms: float = Field(default=10_000, gt=0)
+
+
+class ExecutionConfig(BaseModel):
+    mode: Literal["browser_use", "playwright"] = "browser_use"
+
+
+class LoginConfig(BaseModel):
+    enabled: bool = False
+    username_env: str = "TEST_USERNAME"
+    password_env: str = "TEST_PASSWORD"
+    username_selector: str = "input[name='username']"
+    password_selector: str = "input[name='password']"
+    submit_selector: str = "button[type='submit']"
+    detect_selector: str | None = None
+    timeout_ms: float = Field(default=10_000, gt=0)
+
+
+class WorkflowConfig(BaseModel):
+    login: LoginConfig = Field(default_factory=LoginConfig)
+    setup_steps: list[PlaywrightStep] = Field(default_factory=list)
+    question_selector: str = "textarea"
+    send_selector: str = "button[type='submit']"
+    answer_selector: str = "[data-testid='answer']"
+    target: Literal["main", "iframe"] = "iframe"
+    refresh_action: Literal["reload", "click", "none"] = "reload"
+    refresh_selector: str | None = None
+    ui_timeout_ms: float = Field(default=10_000, gt=0)
+
+
+class ReportConfig(BaseModel):
+    html_directory: Path = Path("reports")
 
 
 class StreamConfig(BaseModel):
@@ -74,12 +105,15 @@ class AppConfig(BaseModel):
     browser: BrowserConfig
     system: SystemConfig
     upload: UploadConfig = Field(default_factory=UploadConfig)
+    execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
+    workflow: WorkflowConfig = Field(default_factory=WorkflowConfig)
     stream: StreamConfig
     agent: AgentConfig = Field(default_factory=AgentConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     runner: RunnerConfig = Field(default_factory=RunnerConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    report: ReportConfig = Field(default_factory=ReportConfig)
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:

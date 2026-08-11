@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Literal
 
@@ -59,6 +60,13 @@ class AgentExecutionResult(BaseModel):
     answer: str
     page_ok: bool
     reason: str
+
+
+@dataclass(slots=True)
+class AgentRun:
+    result: AgentExecutionResult
+    steps: int
+    duration_seconds: float
 
 
 class StreamResult(BaseModel):
