@@ -19,7 +19,7 @@ def write_html_report(
         "<tr>"
         f"<td>{escape(item.case_id)}</td><td>{escape(item.case_name)}</td>"
         f"<td class='{_status(item.passed)}'>{_label(item.passed)}</td>"
-        f"<td>{_label(item.agent_ok)}</td><td>{_label(item.network_ok)}</td>"
+        f"<td>{_label(item.ui_ok)}</td><td>{_label(item.network_ok)}</td>"
         f"<td>{_label(item.answer_ok)}</td><td>{_number(item.ttft_ms)}</td>"
         f"<td>{_number(item.stream_total_ms)}</td>"
         f"<td>{escape(item.answer)}</td>"
@@ -36,7 +36,7 @@ th,td{{border:1px solid #ddd;padding:8px;vertical-align:top}}th{{background:#f3f
 <div class="cards"><div class="card">Total: {statistics['total']}</div>
 <div class="card pass">PASS: {statistics['passed']}</div><div class="card fail">FAIL: {statistics['failed']}</div>
 <div class="card">Success: {statistics['success_rate']:.2f}%</div></div>
-<p>Agent/UI: {statistics['agent_success_rate']:.2f}% · Network: {statistics['network_success_rate']:.2f}% · Answer: {statistics['answer_success_rate']:.2f}%</p>
+<p>UI: {statistics['ui_success_rate']:.2f}% · Network: {statistics['network_success_rate']:.2f}% · Answer: {statistics['answer_success_rate']:.2f}%</p>
 <table><thead><tr><th>Case</th><th>Name</th><th>Result</th><th>UI</th><th>Network</th><th>Answer</th><th>TTFT ms</th><th>Stream ms</th><th>Page Answer</th><th>Error</th><th>Detail</th></tr></thead><tbody>{rows}</tbody></table>
 </body></html>"""
     path.write_text(html, encoding="utf-8")

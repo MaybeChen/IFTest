@@ -35,7 +35,7 @@ def list_cases(cases: CasesOption = Path("config/cases.yaml")) -> None:
 
 @app.command()
 def doctor(config: ConfigOption = Path("config/config.yaml")) -> None:
-    """在启动 Agent 前直连检查 Chrome CDP，并绕过本机 HTTP 代理。"""
+    """在执行用例前直连检查 Chrome CDP，并绕过本机 HTTP 代理。"""
     settings = load_config(config)
     if settings.browser.bypass_proxy_for_loopback:
         ensure_loopback_no_proxy(settings.browser.cdp_url)
@@ -86,10 +86,10 @@ def report(config: ConfigOption = Path("config/config.yaml")) -> None:
     run_data, cases = latest
     console.rule("Latest Browser AI Test")
     console.print(f"Run ID: {run_data['id']}\nCases: {run_data['total_cases']}  PASS: {run_data['passed_cases']}  FAIL: {run_data['failed_cases']}\nSuccess Rate: {run_data['success_rate']:.2f}%")
-    table = Table("Case", "Agent", "Network", "Answer", "Result", "Error")
+    table = Table("Case", "UI", "Network", "Answer", "Result", "Error")
     for item in cases:
         mark = lambda value: "PASS" if value else "FAIL"
-        table.add_row(item["case_id"], mark(item["agent_ok"]), mark(item["network_ok"]), mark(item["answer_ok"]), mark(item["passed"]), item["error_type"] or "-")
+        table.add_row(item["case_id"], mark(item["ui_ok"]), mark(item["network_ok"]), mark(item["answer_ok"]), mark(item["passed"]), item["error_type"] or "-")
     console.print(table)
 
 

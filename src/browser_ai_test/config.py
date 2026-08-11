@@ -29,10 +29,6 @@ class UploadConfig(BaseModel):
     timeout_ms: float = Field(default=10_000, gt=0)
 
 
-class ExecutionConfig(BaseModel):
-    mode: Literal["browser_use", "playwright"] = "browser_use"
-
-
 class LoginConfig(BaseModel):
     enabled: bool = False
     username_env: str = "TEST_USERNAME"
@@ -81,35 +77,12 @@ class LoggingConfig(BaseModel):
     level: str = "INFO"
 
 
-class AgentConfig(BaseModel):
-    """Browser Use execution policy and reusable business instructions."""
-
-    max_steps: int = Field(default=100, gt=0)
-    instructions: list[str] = Field(default_factory=list)
-
-
-class LLMConfig(BaseModel):
-    """Model construction settings without storing credentials in YAML."""
-
-    provider: Literal[
-        "browser_use", "openai", "openai_compatible", "anthropic", "google", "custom"
-    ] = "browser_use"
-    model: str | None = None
-    base_url: str | None = None
-    api_key_env: str | None = None
-    class_path: str | None = None
-    kwargs: dict[str, Any] = Field(default_factory=dict)
-
-
 class AppConfig(BaseModel):
     browser: BrowserConfig
     system: SystemConfig
     upload: UploadConfig = Field(default_factory=UploadConfig)
-    execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
     workflow: WorkflowConfig = Field(default_factory=WorkflowConfig)
     stream: StreamConfig
-    agent: AgentConfig = Field(default_factory=AgentConfig)
-    llm: LLMConfig = Field(default_factory=LLMConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     runner: RunnerConfig = Field(default_factory=RunnerConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)

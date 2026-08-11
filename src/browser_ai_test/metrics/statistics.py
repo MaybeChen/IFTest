@@ -31,7 +31,7 @@ def calculate_statistics(results: Iterable[CaseResult]) -> dict[str, Any]:
     output: dict[str, Any] = {
         "total": total, "passed": passed, "failed": total - passed,
         "success_rate": rate(passed),
-        "agent_success_rate": rate(sum(item.agent_ok for item in items)),
+        "ui_success_rate": rate(sum(item.ui_ok for item in items)),
         "network_success_rate": rate(sum(item.network_ok for item in items)),
         "answer_success_rate": rate(sum(item.answer_ok for item in items)),
         "ttft_avg": fmean(ttft) if ttft else None,

@@ -11,7 +11,7 @@ Protocol = Literal["sse", "websocket", "http", "auto"]
 
 
 class ErrorType(StrEnum):
-    AGENT_ERROR = "AGENT_ERROR"
+    WORKFLOW_ERROR = "WORKFLOW_ERROR"
     NETWORK_TIMEOUT = "NETWORK_TIMEOUT"
     NETWORK_ERROR = "NETWORK_ERROR"
     STREAM_NOT_FOUND = "STREAM_NOT_FOUND"
@@ -22,7 +22,7 @@ class ErrorType(StrEnum):
 
 
 class ExpectedConfig(BaseModel):
-    type: Literal["keyword", "regex", "exact", "json", "llm_judge"]
+    type: Literal["keyword", "regex"]
     values: list[str] = Field(min_length=1)
     match_mode: Literal["all", "any"] = "all"
 
@@ -44,8 +44,6 @@ class TestCase(BaseModel):
     name: str
     question: str
     file: str | None = None
-    steps: list[str] = Field(default_factory=list)
-    playwright_steps: list[PlaywrightStep] = Field(default_factory=list)
     expected: ExpectedConfig
     stream: CaseStreamConfig = Field(default_factory=CaseStreamConfig)
     timeout_seconds: float | None = Field(default=None, gt=0)
@@ -56,15 +54,15 @@ class ValidationResult(BaseModel):
     reason: str
 
 
-class AgentExecutionResult(BaseModel):
+class UIExecutionResult(BaseModel):
     answer: str
     page_ok: bool
     reason: str
 
 
 @dataclass(slots=True)
-class AgentRun:
-    result: AgentExecutionResult
+class WorkflowRun:
+    result: UIExecutionResult
     steps: int
     duration_seconds: float
 
@@ -84,14 +82,14 @@ class CaseResult(BaseModel):
     started_at: datetime
     finished_at: datetime
     passed: bool
-    agent_ok: bool
+    ui_ok: bool
     network_ok: bool
     answer_ok: bool
     protocol: str | None = None
     ttft_ms: float | None = None
     stream_total_ms: float | None = None
-    agent_total_seconds: float | None = None
-    agent_steps: int = 0
+    workflow_total_seconds: float | None = None
+    workflow_steps: int = 0
     question: str
     answer: str = ""
     error_type: ErrorType | None = None

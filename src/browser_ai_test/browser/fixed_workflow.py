@@ -8,7 +8,7 @@ from browser_ai_test.browser.file_upload import upload_case_file
 from browser_ai_test.browser.playwright_steps import execute_playwright_steps
 from browser_ai_test.browser.stream_monitor import StreamMonitor
 from browser_ai_test.config import SystemConfig, UploadConfig, WorkflowConfig
-from browser_ai_test.models import AgentExecutionResult, AgentRun, TestCase
+from browser_ai_test.models import UIExecutionResult, WorkflowRun, TestCase
 
 
 class FixedWorkflowError(RuntimeError):
@@ -16,7 +16,7 @@ class FixedWorkflowError(RuntimeError):
 
 
 class FixedPlaywrightExecutor:
-    """Run the configured QA workflow without an LLM or browser-use Agent."""
+    """Run the configured deterministic Playwright QA workflow."""
 
     def __init__(
         self,
@@ -41,7 +41,7 @@ class FixedPlaywrightExecutor:
             self.page, self.workflow.setup_steps, self.system.iframe_selector
         )
 
-    async def execute(self, case: TestCase) -> AgentRun:
+    async def execute(self, case: TestCase) -> WorkflowRun:
         started = time.monotonic()
         steps = 0
         try:
@@ -66,8 +66,8 @@ class FixedPlaywrightExecutor:
                 timeout=self.workflow.ui_timeout_ms
             )
             steps += 1
-            return AgentRun(
-                result=AgentExecutionResult(
+            return WorkflowRun(
+                result=UIExecutionResult(
                     answer=answer, page_ok=True, reason="固定 Playwright 流程执行成功"
                 ),
                 steps=steps,

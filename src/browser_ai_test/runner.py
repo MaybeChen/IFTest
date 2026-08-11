@@ -3,10 +3,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Any
-
-from browser_ai_test.agent.executor import AgentExecutor
-from browser_ai_test.agent.model_factory import create_llm
 from browser_ai_test.browser.session import SharedBrowserSession
 from browser_ai_test.browser.fixed_workflow import FixedPlaywrightExecutor
 from browser_ai_test.config import AppConfig
@@ -32,25 +28,13 @@ class TestRunner:
         self.database.start_run(run_id, started.isoformat())
         collector = MetricsCollector()
         try:
-            llm = create_llm(self.config.llm) if self.config.execution.mode == "browser_use" else None
-            async with self.session_factory(
-                self.config.browser,
-                self.config.stream,
-                enable_browser_use=self.config.execution.mode == "browser_use",
-            ) as session:
-                executor: Any
-                if self.config.execution.mode == "playwright":
-                    executor = FixedPlaywrightExecutor(
-                        session.page, session.monitor, self.config.system,
-                        self.config.upload, self.config.workflow,
-                        self.config.stream.timeout_seconds,
-                    )
-                    await executor.initialize()
-                else:
-                    executor = AgentExecutor(
-                        session, self.config.system, self.config.agent,
-                        self.config.upload, self.config.stream.timeout_seconds, llm=llm,
-                    )
+            async with self.session_factory(self.config.browser, self.config.stream) as session:
+                executor = FixedPlaywrightExecutor(
+                    session.page, session.monitor, self.config.system,
+                    self.config.upload, self.config.workflow,
+                    self.config.stream.timeout_seconds,
+                )
+                await executor.initialize()
                 for index, case in enumerate(cases, 1):
                     result = await self._run_case(run_id, case, executor, session)
                     collector.add(result)
@@ -71,26 +55,26 @@ class TestRunner:
         logger.info("HTML report: %s", report_path)
         return run_id, collector
 
-    async def _run_case(self, run_id: str, case: TestCase, executor: Any, session: SharedBrowserSession) -> CaseResult:
+    async def _run_case(self, run_id: str, case: TestCase, executor: FixedPlaywrightExecutor, session: SharedBrowserSession) -> CaseResult:
         started = datetime.now(timezone.utc)
         protocol = case.stream.protocol or self.config.stream.protocol
         session.monitor.arm(protocol)
         answer = ""
-        agent_ok = network_ok = answer_ok = False
+        ui_ok = network_ok = answer_ok = False
         error_type: ErrorType | None = None
         detail: str | None = None
         steps = 0
         duration: float | None = None
         try:
-            agent_run = await executor.execute(case)
-            answer = agent_run.result.answer
-            steps, duration = agent_run.steps, agent_run.duration_seconds
-            agent_ok = agent_run.result.page_ok
+            workflow_run = await executor.execute(case)
+            answer = workflow_run.result.answer
+            steps, duration = workflow_run.steps, workflow_run.duration_seconds
+            ui_ok = workflow_run.result.page_ok
             network_ok = session.monitor.done_event.is_set() and not session.monitor.network_error and session.monitor.done_ts is not None
             validation = get_validator(case.expected.type, case.expected.match_mode).validate(answer, case.expected.values)
             answer_ok = validation.passed
-            if not agent_ok:
-                error_type, detail = ErrorType.PAGE_ERROR, agent_run.result.reason
+            if not ui_ok:
+                error_type, detail = ErrorType.PAGE_ERROR, workflow_run.result.reason
             elif not network_ok:
                 error_type = ErrorType.NETWORK_ERROR if session.monitor.network_error else (ErrorType.STREAM_NOT_FOUND if not session.monitor.request_ids else ErrorType.STREAM_TIMEOUT)
                 detail = session.monitor.network_error or "CDP 未确认业务完成"
@@ -100,27 +84,24 @@ class TestRunner:
             logger.exception("Case %s execution failed", case.id)
             detail = str(exc)
             if not session.monitor.request_ids:
-                # An executor exception before any target request is an Agent/model
-                # failure. STREAM_NOT_FOUND is reserved for a completed Agent run
-                # that never generated a matching network request.
-                error_type = ErrorType.AGENT_ERROR
+                error_type = ErrorType.WORKFLOW_ERROR
             elif session.monitor.network_error:
                 error_type = ErrorType.NETWORK_ERROR
             elif not session.monitor.done_event.is_set():
                 error_type = ErrorType.STREAM_TIMEOUT
             else:
-                error_type = ErrorType.AGENT_ERROR
+                error_type = ErrorType.WORKFLOW_ERROR
         request_start = session.monitor.request_start_ts
         first = session.monitor.first_message_ts
         done = session.monitor.done_ts
         ttft = (first - request_start) * 1000 if first is not None and request_start is not None else None
         stream_total = (done - request_start) * 1000 if done is not None and request_start is not None else None
-        passed = agent_ok and network_ok and answer_ok
+        passed = ui_ok and network_ok and answer_ok
         return CaseResult(
             run_id=run_id, case_id=case.id, case_name=case.name, started_at=started,
-            finished_at=datetime.now(timezone.utc), passed=passed, agent_ok=agent_ok,
+            finished_at=datetime.now(timezone.utc), passed=passed, ui_ok=ui_ok,
             network_ok=network_ok, answer_ok=answer_ok, protocol=session.monitor.detected_protocol or protocol,
-            ttft_ms=ttft, stream_total_ms=stream_total, agent_total_seconds=duration,
-            agent_steps=steps, question=case.question, answer=answer,
+            ttft_ms=ttft, stream_total_ms=stream_total, workflow_total_seconds=duration,
+            workflow_steps=steps, question=case.question, answer=answer,
             error_type=None if passed else (error_type or ErrorType.UNKNOWN), error_detail=detail,
         )

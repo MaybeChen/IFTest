@@ -13,7 +13,7 @@ class CDPConnectionError(ConnectionError):
 
 
 def ensure_loopback_no_proxy(cdp_url: str) -> None:
-    """Prevent HTTP clients such as browser-use/httpx proxying local CDP traffic."""
+    """Prevent HTTP clients from proxying local CDP traffic."""
     hostname = urlparse(cdp_url).hostname
     if hostname not in {"localhost", "127.0.0.1", "::1"}:
         return

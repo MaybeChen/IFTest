@@ -25,14 +25,34 @@ class ResultsDatabase:
         CREATE TABLE IF NOT EXISTS case_results (
           id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL,
           case_id TEXT NOT NULL, case_name TEXT NOT NULL, started_at TEXT NOT NULL,
-          finished_at TEXT NOT NULL, passed INTEGER NOT NULL, agent_ok INTEGER NOT NULL,
+          finished_at TEXT NOT NULL, passed INTEGER NOT NULL, ui_ok INTEGER NOT NULL,
           network_ok INTEGER NOT NULL, answer_ok INTEGER NOT NULL, protocol TEXT,
-          ttft_ms REAL, stream_total_ms REAL, agent_total_seconds REAL,
-          agent_steps INTEGER NOT NULL, question TEXT NOT NULL, answer TEXT NOT NULL,
+          ttft_ms REAL, stream_total_ms REAL, workflow_total_seconds REAL,
+          workflow_steps INTEGER NOT NULL, question TEXT NOT NULL, answer TEXT NOT NULL,
           error_type TEXT, error_detail TEXT, FOREIGN KEY(run_id) REFERENCES runs(id)
         );
         """)
+        self._migrate_legacy_columns()
         self.connection.commit()
+
+    def _migrate_legacy_columns(self) -> None:
+        """Keep databases created by the former optional automation mode usable."""
+        columns = {
+            row[1]
+            for row in self.connection.execute("PRAGMA table_info(case_results)").fetchall()
+        }
+        if "agent_ok" in columns and "ui_ok" not in columns:
+            self.connection.execute(
+                "ALTER TABLE case_results RENAME COLUMN agent_ok TO ui_ok"
+            )
+        if "agent_total_seconds" in columns and "workflow_total_seconds" not in columns:
+            self.connection.execute(
+                "ALTER TABLE case_results RENAME COLUMN agent_total_seconds TO workflow_total_seconds"
+            )
+        if "agent_steps" in columns and "workflow_steps" not in columns:
+            self.connection.execute(
+                "ALTER TABLE case_results RENAME COLUMN agent_steps TO workflow_steps"
+            )
 
     def start_run(self, run_id: str, started_at: str) -> None:
         self.connection.execute("INSERT INTO runs(id, started_at) VALUES (?, ?)", (run_id, started_at))
@@ -40,14 +60,14 @@ class ResultsDatabase:
 
     def save_case(self, result: CaseResult) -> None:
         self.connection.execute("""INSERT INTO case_results (
-          run_id, case_id, case_name, started_at, finished_at, passed, agent_ok,
+          run_id, case_id, case_name, started_at, finished_at, passed, ui_ok,
           network_ok, answer_ok, protocol, ttft_ms, stream_total_ms,
-          agent_total_seconds, agent_steps, question, answer, error_type, error_detail
+          workflow_total_seconds, workflow_steps, question, answer, error_type, error_detail
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (
             result.run_id, result.case_id, result.case_name, result.started_at.isoformat(),
-            result.finished_at.isoformat(), result.passed, result.agent_ok, result.network_ok,
+            result.finished_at.isoformat(), result.passed, result.ui_ok, result.network_ok,
             result.answer_ok, result.protocol, result.ttft_ms, result.stream_total_ms,
-            result.agent_total_seconds, result.agent_steps, result.question, result.answer,
+            result.workflow_total_seconds, result.workflow_steps, result.question, result.answer,
             result.error_type.value if result.error_type else None, result.error_detail,
         ))
         self.connection.commit()

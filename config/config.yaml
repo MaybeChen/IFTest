@@ -3,27 +3,10 @@ browser:
   headless: false
   cdp_timeout_seconds: 10
   bypass_proxy_for_loopback: true
-execution:
-  # browser_use 使用大模型；playwright 使用完全固定脚本，不创建模型或 Browser Use Agent。
-  mode: browser_use
 system:
   url: "https://example.test"
   iframe_hint: "business iframe"
   iframe_selector: null
-llm:
-  # browser_use/openai/openai_compatible/anthropic/google/custom
-  provider: browser_use
-  model: null
-  base_url: null
-  api_key_env: null
-  # provider=custom 时填写，例如 "my_package.models.MyBrowserUseModel"
-  class_path: null
-  kwargs:
-    temperature: 0
-agent:
-  max_steps: 100
-  # 每个 Case 都会执行的公共步骤，例如登录、切换租户或关闭弹窗。
-  instructions: []
 upload:
   directory: "data/uploads"
   input_selector: "input[type='file']"
