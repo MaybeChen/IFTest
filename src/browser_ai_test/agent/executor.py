@@ -8,7 +8,7 @@ from typing import Any
 from browser_ai_test.agent.prompts import build_task
 from browser_ai_test.agent.tools import create_monitor_tools
 from browser_ai_test.browser.session import SharedBrowserSession
-from browser_ai_test.config import AgentConfig, SystemConfig
+from browser_ai_test.config import AgentConfig, SystemConfig, UploadConfig
 from browser_ai_test.models import AgentExecutionResult, TestCase
 
 
@@ -20,10 +20,11 @@ class AgentRun:
 
 
 class AgentExecutor:
-    def __init__(self, session: SharedBrowserSession, system: SystemConfig, agent: AgentConfig, default_timeout: float, llm: Any | None = None) -> None:
+    def __init__(self, session: SharedBrowserSession, system: SystemConfig, agent: AgentConfig, upload: UploadConfig, default_timeout: float, llm: Any | None = None) -> None:
         self.session = session
         self.system = system
         self.agent_config = agent
+        self.upload_config = upload
         self.default_timeout = default_timeout
         self.llm = llm
 
@@ -47,6 +48,8 @@ class AgentExecutor:
                 self.session.page,
                 case.playwright_steps,
                 self.system.iframe_selector,
+                case.file,
+                self.upload_config,
             ),
         }
         signature = inspect.signature(Agent)

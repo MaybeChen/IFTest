@@ -19,6 +19,11 @@ agent:
   max_steps: 100
   # 每个 Case 都会执行的公共步骤，例如登录、切换租户或关闭弹窗。
   instructions: []
+upload:
+  directory: "data/uploads"
+  input_selector: "input[type='file']"
+  target: auto
+  timeout_ms: 10000
 stream:
   protocol: "sse"
   url_keywords:

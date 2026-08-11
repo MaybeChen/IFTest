@@ -2,6 +2,7 @@ cases:
   - id: QA_001
     name: 日本首都测试
     question: "日本的首都是哪里？"
+    file: null
     steps:
       - 确认当前位于问答页面
     playwright_steps: []
@@ -15,6 +16,7 @@ cases:
   - id: QA_002
     name: 数学测试
     question: "1+1等于多少？"
+    file: null
     steps: []
     playwright_steps: []
     expected:

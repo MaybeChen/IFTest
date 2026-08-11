@@ -16,6 +16,46 @@ YAML Cases -> TestRunner -> Browser Use Agent -> iframe 页面操作
 
 Runner 在一个外部 Chrome、一个 Browser Use `BrowserSession`、一个 Playwright context 和一个 case-scoped monitor 上串行执行。每个 Case 在发送前 reset/arm；超时和网络错误被记录而不会污染下一 Case。SQLite 接口和 metrics 层相互独立，方便后续替换 PostgreSQL、接入 Grafana/Prometheus 或多 Chrome worker。
 
+## 快速使用流程
+
+对于“上传一个文件，再输入问题”的问答场景，首次接入按下面 7 步完成：
+
+1. **安装工程**：创建并激活 Python 3.12 虚拟环境，执行
+   `python -m pip install -e ".[test]"`。
+2. **准备模型凭据**：复制 `.env.example` 为 `.env`，填写所选模型的 API Key；在
+   `config/config.yaml` 的 `llm` 中配置 provider、model 和可选 base URL。
+3. **准备 Chrome**：使用 `--remote-debugging-port=9222` 启动外部 Chrome。Browser Use、
+   Playwright 和 CDP 都连接这个 Chrome，不要另外启动浏览器。
+4. **配置被测系统和网络完成信号**：修改 `system.url`、可选
+   `system.iframe_selector`、`stream.protocol`、`stream.url_keywords` 和
+   `stream.done_markers`。
+5. **准备上传文件**：把文件放入 `upload.directory`；根据页面实际 file input 调整
+   `upload.input_selector`，`target` 通常先使用 `auto`。
+6. **编写 Case**：在 `config/cases.yaml` 中配置 `id`、`name`、`question`、相对文件名
+   `file` 和标准答案 `expected`。不同 Case 通常只需要更换这几个字段。
+7. **检查并运行**：先执行 `browser-ai-test list`，再执行
+   `browser-ai-test run --case FILE_QA_001`；完成后用 `browser-ai-test report` 查看最近结果。
+
+单个文件问答 Case 的运行时流程是：
+
+```text
+读取 YAML Case
+  -> 检查 upload.directory/file
+  -> 连接同一个 Chrome/CDP
+  -> Browser Use 打开系统并识别业务 iframe
+  -> Playwright set_input_files 上传附件
+  -> Browser Use 原样输入 question
+  -> arm_stream_monitor
+  -> 只点击一次发送
+  -> wait_stream_done 等待 CDP 业务完成信号
+  -> Browser Use 从页面读取最终答案
+  -> Validator 校验 expected
+  -> 保存 SQLite 指标并输出控制台报告
+```
+
+最终结果不是由 Agent 单独决定。只有 `agent_ok`、`network_ok` 和 `answer_ok` 同时为真，
+Case 才会 PASS。
+
 ## 环境与安装
 
 要求 Python 3.12+。项目声明的 Browser Use 兼容系列为 `>=0.11,<0.12`；关键构造参数会进行运行时签名检查，以便 patch 版本 API 变化时给出明确错误，而不是悄悄启动第二个浏览器。当前受限构建环境未预装 browser-use，真实依赖安装和页面联调仍需在目标环境执行。
@@ -208,6 +248,62 @@ cases:
 - 页面结构经常变化、需要视觉或语义理解：使用 `steps`。
 - 提交 AI 问题和等待生成完成：仍由 Browser Use + StreamMonitor 的强制流程处理，避免
   Playwright 步骤绕过 `arm_stream_monitor`。
+
+## “输入问题 + 上传文件”问答场景
+
+这类 Case 不需要重复编写上传 selector 或详细步骤。上传目录和文件控件只在主配置中
+定义一次，Case 通常只写问题、文件名和标准答案。
+
+主配置：
+
+```yaml
+system:
+  url: "https://your-system.example"
+  iframe_selector: "#business-frame"  # 有稳定 selector 时建议配置
+
+upload:
+  directory: "D:/browser-ai-test-files"  # Windows 也可以写 D:\\qa-files
+  input_selector: "input[type='file']"
+  target: auto       # main / iframe / auto
+  timeout_ms: 10000
+```
+
+最简 Case：
+
+```yaml
+cases:
+  - id: FILE_QA_001
+    name: 文档问答
+    question: "请总结这份文件的主要内容"
+    file: "产品说明书.pdf"
+    expected:
+      type: keyword
+      values:
+        - "产品功能"
+        - "使用限制"
+    stream:
+      protocol: sse
+    timeout_seconds: 120
+```
+
+执行时框架会：
+
+1. 将 `upload.directory` 与 Case 的 `file` 安全拼接，并确认文件存在且没有通过 `..`
+   越过指定目录；
+2. 在主页面、配置 iframe 或自动发现的 frame 中定位 `upload.input_selector`；
+3. 使用 Playwright `set_input_files()` 上传该文件；
+4. 上传工具返回成功后，Browser Use 才会输入 `question`；
+5. 发送前 arm StreamMonitor，发送后等待真实的 SSE/WS/HTTP 完成信号；
+6. 从页面读取答案并与 `expected` 验证。
+
+`file` 是相对于 `upload.directory` 的路径，也可以包含目录内的子目录，例如
+`manuals/产品说明书.pdf`。出于安全和可复现性考虑，它不是任意绝对路径，也不允许
+`../`。如果不同 Case 使用不同文件，只修改各 Case 的 `file` 即可。没有附件的 Case
+设置 `file: null` 或省略该字段。
+
+如果页面没有标准 `<input type="file">`，应在浏览器 DevTools 中找到真正的隐藏 file
+input，并把 `upload.input_selector` 改为稳定 selector。Playwright 可以直接对隐藏 file
+input 调用 `set_input_files()`，通常不需要操作系统文件选择窗口。
 
 ## 启动同一个 Chrome/CDP
 

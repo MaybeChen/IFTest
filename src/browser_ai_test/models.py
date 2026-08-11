@@ -42,6 +42,7 @@ class TestCase(BaseModel):
     id: str
     name: str
     question: str
+    file: str | None = None
     steps: list[str] = Field(default_factory=list)
     playwright_steps: list[PlaywrightStep] = Field(default_factory=list)
     expected: ExpectedConfig

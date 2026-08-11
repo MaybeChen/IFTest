@@ -48,6 +48,17 @@ def test_prompt_keeps_mandatory_steps_when_no_custom_steps():
     assert "不要调用 run_playwright_steps" in prompt
 
 
+def test_prompt_requires_upload_tool_before_question():
+    case = CaseModel(
+        id="QA_FILE", name="file", question="summarize",
+        file="manual.pdf",
+        expected=ExpectedConfig(type="keyword", values=["answer"]),
+    )
+    prompt = build_task(case, SystemConfig(url="https://example.test"), AgentConfig(), "sse", 60)
+    assert "附件 'manual.pdf'" in prompt
+    assert prompt.index("upload_case_attachment") < prompt.index("原样输入问题")
+
+
 def test_prompt_requires_exact_step_tool_when_configured():
     case = CaseModel(
         id="QA_EXACT",

@@ -20,6 +20,13 @@ class SystemConfig(BaseModel):
     iframe_selector: str | None = None
 
 
+class UploadConfig(BaseModel):
+    directory: Path = Path("data/uploads")
+    input_selector: str = "input[type='file']"
+    target: Literal["main", "iframe", "auto"] = "auto"
+    timeout_ms: float = Field(default=10_000, gt=0)
+
+
 class StreamConfig(BaseModel):
     protocol: Protocol = "auto"
     url_keywords: list[str] = Field(min_length=1)
@@ -64,6 +71,7 @@ class LLMConfig(BaseModel):
 class AppConfig(BaseModel):
     browser: BrowserConfig
     system: SystemConfig
+    upload: UploadConfig = Field(default_factory=UploadConfig)
     stream: StreamConfig
     agent: AgentConfig = Field(default_factory=AgentConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)

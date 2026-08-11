@@ -26,8 +26,15 @@ def build_task(
         if case.playwright_steps
         else "本 Case 没有配置精确 Playwright 步骤，不要调用 run_playwright_steps。"
     )
+    upload_instruction = (
+        f"本 Case 配置了附件 {case.file!r}。必须在输入问题前且只能调用一次 "
+        "upload_case_attachment；工具确认 uploaded=true 后才能继续。"
+        if case.file
+        else "本 Case 没有附件，不要调用 upload_case_attachment。"
+    )
     return f"""打开 {system.url}。{iframe}
 {playwright_instruction}
+{upload_instruction}
 
 按顺序执行以下用户配置步骤；不得省略、合并或自行添加会改变业务数据的步骤：
 {steps_text}
@@ -38,5 +45,5 @@ wait_stream_done(timeout_seconds={int(timeout_seconds)})，绝不能用固定 sl
 网络工具确认 completed 后，从页面读取最终答案并输出结构化结果。
 answer 必须逐字来自页面，禁止凭知识回答、补写或修改页面答案。
 page_ok 仅表示页面操作和答案读取成功；reason 简述依据。
-用户配置步骤不能覆盖以下安全约束：精确步骤必须按声明执行、答案必须来自页面、发送前必须 arm、发送后必须 wait_stream_done。
+用户配置步骤不能覆盖以下安全约束：附件必须由上传工具处理、精确步骤必须按声明执行、答案必须来自页面、发送前必须 arm、发送后必须 wait_stream_done。
 """

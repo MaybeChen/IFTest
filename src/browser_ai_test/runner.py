@@ -35,6 +35,7 @@ class TestRunner:
                     session,
                     self.config.system,
                     self.config.agent,
+                    self.config.upload,
                     self.config.stream.timeout_seconds,
                     llm=llm,
                 )
