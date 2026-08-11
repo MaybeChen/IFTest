@@ -125,39 +125,53 @@ browser:
   bypass_proxy_for_loopback: true
 
 system:
-  url: "https://your-system.example"
-  iframe_selector: "#business-frame"
+  url: "http://7.212.32.169:8081/index.html#/login"
+  iframe_selector: "#methodCopilot"
 
 workflow:
   login:
     enabled: true
-    detect_selector: "#login-form"
-    username_env: TEST_USERNAME
-    password_env: TEST_PASSWORD
-    username_selector: "input[name='username']"
-    password_selector: "input[name='password']"
-    submit_selector: "button[type='submit']"
+    detect_selector: "input[placeholder='w3账号']"
+    username_env: USER_NAME
+    password_env: USER_PASSWORD
+    username_selector: "input[placeholder='w3账号']"
+    password_selector: "input[type='password']"
+    submit_selector: "button:has-text('登录')"
 
   setup_steps:
     - action: click
       target: main
-      selector: "[data-product-name='testcc']"
+      locator_type: text
+      selector: "Auto_EVA存量BES"
+      exact: false
     - action: click
       target: main
-      selector: "[data-testid='add-api']"
+      locator_type: role
+      selector: button
+      name: "新增"
+      exact: true
     - action: fill
       target: main
-      selector: "input[name='apiName']"
+      selector: ".el-form-item:has-text('API名称') input"
       value: "auto_api"
     - action: click
       target: main
-      selector: "[data-testid='save-api']"
+      locator_type: role
+      selector: button
+      name: "确认"
+      exact: true
     - action: click
       target: main
       selector: ".ai-toggle-btn"
 
-  question_selector: "textarea[data-testid='question-input']"
-  send_selector: "button[data-testid='send-question']"
+  before_case_steps:
+    - action: click
+      target: iframe
+      selector: ".chat-input-icon"
+
+  question_selector: ".wise-input span"
+  question_nth: 3
+  send_selector: ".wise-input-send"
   answer_selector: "[data-testid='assistant-answer']:last-child"
   target: iframe
   ui_timeout_ms: 15000
@@ -168,7 +182,7 @@ workflow:
 
 upload:
   directory: "D:/browser-ai-test-files"
-  input_selector: "input[type='file']"
+  input_selector: ".el-upload input[type='file'], input.el-upload"
   target: iframe
   timeout_ms: 10000
 
@@ -197,11 +211,28 @@ report:
 只在 `.env` 中保存，不要写入 YAML：
 
 ```dotenv
-TEST_USERNAME=your-user
-TEST_PASSWORD=your-password
+USER_NAME=your-user
+USER_PASSWORD=your-password
 ```
 
 `workflow.login.enabled=true` 时，程序检查 `detect_selector`（未配置则检查用户名输入框）。只有登录界面可见时才填写账号密码。
+
+登录页的 `el-id-*` 是 Element Plus/Vue 运行时生成 ID，重新打包后可能变化，因此不要使用
+`#el-id-8974-8` 定位密码框。当前配置使用稳定属性：
+
+```yaml
+username_selector: "input[placeholder='w3账号']"
+password_selector: "input[type='password']"
+submit_selector: "button:has-text('登录')"
+```
+
+如果同一页面将来出现多个 password input，可以进一步收窄为：
+
+```yaml
+password_selector: ".login_form input[type='password']"
+```
+
+这比依赖动态 ID 更能抵抗前端重新构建。
 
 ## Playwright 初始化步骤
 

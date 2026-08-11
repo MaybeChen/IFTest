@@ -4,27 +4,58 @@ browser:
   cdp_timeout_seconds: 10
   bypass_proxy_for_loopback: true
 system:
-  url: "https://example.test"
+  url: "http://7.212.32.169:8081/index.html#/login"
   iframe_hint: "business iframe"
-  iframe_selector: null
+  iframe_selector: "#methodCopilot"
 upload:
   directory: "data/uploads"
-  input_selector: "input[type='file']"
-  target: auto
+  input_selector: ".el-upload input[type='file'], input.el-upload"
+  target: iframe
   timeout_ms: 10000
 workflow:
   login:
-    enabled: false
-    username_env: TEST_USERNAME
-    password_env: TEST_PASSWORD
-    username_selector: "input[name='username']"
-    password_selector: "input[name='password']"
-    submit_selector: "button[type='submit']"
+    enabled: true
+    detect_selector: "input[placeholder='w3账号']"
+    username_env: USER_NAME
+    password_env: USER_PASSWORD
+    username_selector: "input[placeholder='w3账号']"
+    # Vue/Element Plus 生成的 el-id 会变化，使用稳定的 type=password。
+    password_selector: "input[type='password']"
+    submit_selector: "button:has-text('登录')"
   # 在这里编辑固定 Playwright 初始化步骤：点击 testcc、新增 auto_api、打开 AI 助手等。
   # 每条步骤支持 action/target/selector/value/timeout_ms；完整示例见 README。
-  setup_steps: []
-  question_selector: "textarea"
-  send_selector: "button[type='submit']"
+  setup_steps:
+    - action: click
+      target: main
+      locator_type: text
+      selector: "Auto_EVA存量BES"
+      exact: false
+    - action: click
+      target: main
+      locator_type: role
+      selector: button
+      name: "新增"
+      exact: true
+    - action: fill
+      target: main
+      selector: ".el-form-item:has-text('API名称') input"
+      value: "auto_api"
+    - action: click
+      target: main
+      locator_type: role
+      selector: button
+      name: "确认"
+      exact: true
+    - action: click
+      target: main
+      selector: ".ai-toggle-btn"
+  before_case_steps:
+    - action: click
+      target: iframe
+      selector: ".chat-input-icon"
+  question_selector: ".wise-input span"
+  question_nth: 3
+  send_selector: ".wise-input-send"
   answer_selector: "[data-testid='answer']"
   target: iframe
   refresh_action: reload

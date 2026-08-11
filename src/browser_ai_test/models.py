@@ -34,6 +34,10 @@ class CaseStreamConfig(BaseModel):
 class PlaywrightStep(BaseModel):
     action: Literal["click", "fill", "select_option", "check", "press", "wait_visible"]
     selector: str
+    locator_type: Literal["css", "text", "role", "label", "placeholder"] = "css"
+    name: str | None = None
+    exact: bool = False
+    nth: int | None = None
     value: str | None = None
     target: Literal["main", "iframe"] = "iframe"
     timeout_ms: float = Field(default=10_000, gt=0)

@@ -45,13 +45,23 @@ class FixedPlaywrightExecutor:
         started = time.monotonic()
         steps = 0
         try:
+            if self.workflow.before_case_steps:
+                await execute_playwright_steps(
+                    self.page,
+                    self.workflow.before_case_steps,
+                    self.system.iframe_selector,
+                )
+                steps += len(self.workflow.before_case_steps)
             if case.file:
                 await upload_case_file(
                     self.page, case.file, self.upload, self.system.iframe_selector
                 )
                 steps += 1
             root = self._root()
-            await root.locator(self.workflow.question_selector).fill(
+            question_locator = root.locator(self.workflow.question_selector)
+            if self.workflow.question_nth is not None:
+                question_locator = question_locator.nth(self.workflow.question_nth)
+            await question_locator.fill(
                 case.question, timeout=self.workflow.ui_timeout_ms
             )
             steps += 1

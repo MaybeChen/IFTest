@@ -19,6 +19,9 @@ class FakeLocator:
             self.calls.append((self.selector, action, args, kwargs))
         return execute
 
+    def nth(self, index):
+        return FakeLocator(f"{self.selector}:nth({index})", self.calls)
+
 
 class FakeRoot:
     def __init__(self, calls, prefix="main"):
@@ -27,6 +30,18 @@ class FakeRoot:
 
     def locator(self, selector):
         return FakeLocator(f"{self.prefix}:{selector}", self.calls)
+
+    def get_by_text(self, text, **kwargs):
+        return FakeLocator(f"{self.prefix}:text={text}:{kwargs}", self.calls)
+
+    def get_by_role(self, role, **kwargs):
+        return FakeLocator(f"{self.prefix}:role={role}:{kwargs}", self.calls)
+
+    def get_by_label(self, label, **kwargs):
+        return FakeLocator(f"{self.prefix}:label={label}:{kwargs}", self.calls)
+
+    def get_by_placeholder(self, placeholder, **kwargs):
+        return FakeLocator(f"{self.prefix}:placeholder={placeholder}:{kwargs}", self.calls)
 
 
 class FakePage(FakeRoot):
@@ -79,3 +94,17 @@ def test_value_action_requires_value():
                 None,
             )
         )
+
+
+def test_semantic_locator_and_nth_are_supported():
+    calls = []
+    steps = [
+        PlaywrightStep(
+            action="click", target="main", locator_type="role",
+            selector="button", name="新增", exact=True, nth=1,
+        )
+    ]
+    asyncio.run(execute_playwright_steps(FakePage(calls), steps, None))
+    assert calls[0][0].startswith("main:role=button:")
+    assert "'name': '新增'" in calls[0][0]
+    assert calls[0][0].endswith(":nth(1)")

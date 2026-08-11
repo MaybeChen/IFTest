@@ -25,7 +25,7 @@ async def execute_playwright_steps(
             root = page.frame_locator(iframe_selector)
         else:
             root = page
-        locator = root.locator(step.selector)
+        locator = _resolve_locator(root, step)
         try:
             if step.action == "click":
                 await locator.click(timeout=step.timeout_ms)
@@ -55,3 +55,17 @@ def _required_value(step: PlaywrightStep, index: int) -> str:
             f"Playwright step {index} action={step.action} 必须配置 value"
         )
     return step.value
+
+
+def _resolve_locator(root: Any, step: PlaywrightStep) -> Any:
+    if step.locator_type == "text":
+        locator = root.get_by_text(step.selector, exact=step.exact)
+    elif step.locator_type == "role":
+        locator = root.get_by_role(step.selector, name=step.name, exact=step.exact)
+    elif step.locator_type == "label":
+        locator = root.get_by_label(step.selector, exact=step.exact)
+    elif step.locator_type == "placeholder":
+        locator = root.get_by_placeholder(step.selector, exact=step.exact)
+    else:
+        locator = root.locator(step.selector)
+    return locator.nth(step.nth) if step.nth is not None else locator

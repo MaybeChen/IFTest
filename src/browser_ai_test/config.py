@@ -31,11 +31,11 @@ class UploadConfig(BaseModel):
 
 class LoginConfig(BaseModel):
     enabled: bool = False
-    username_env: str = "TEST_USERNAME"
-    password_env: str = "TEST_PASSWORD"
-    username_selector: str = "input[name='username']"
-    password_selector: str = "input[name='password']"
-    submit_selector: str = "button[type='submit']"
+    username_env: str = "USER_NAME"
+    password_env: str = "USER_PASSWORD"
+    username_selector: str = "input[placeholder='w3账号']"
+    password_selector: str = "input[type='password']"
+    submit_selector: str = "button:has-text('登录')"
     detect_selector: str | None = None
     timeout_ms: float = Field(default=10_000, gt=0)
 
@@ -43,7 +43,9 @@ class LoginConfig(BaseModel):
 class WorkflowConfig(BaseModel):
     login: LoginConfig = Field(default_factory=LoginConfig)
     setup_steps: list[PlaywrightStep] = Field(default_factory=list)
+    before_case_steps: list[PlaywrightStep] = Field(default_factory=list)
     question_selector: str = "textarea"
+    question_nth: int | None = None
     send_selector: str = "button[type='submit']"
     answer_selector: str = "[data-testid='answer']"
     target: Literal["main", "iframe"] = "iframe"

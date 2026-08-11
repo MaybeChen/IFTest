@@ -21,6 +21,9 @@ class FakeLocator:
     async def inner_text(self, **kwargs):
         self.calls.append(("inner_text", self.selector, kwargs)); return "页面生成的标准答案"
 
+    def nth(self, index):
+        return FakeLocator(f"{self.selector}:nth({index})", self.calls, self.visible)
+
 
 class FakeRoot:
     def __init__(self, calls, prefix): self.calls = calls; self.prefix = prefix
@@ -63,7 +66,8 @@ def test_fixed_workflow_logs_in_runs_case_and_refreshes(monkeypatch):
     assert result.result.answer == "页面生成的标准答案"
     assert result.result.page_ok
     assert ("arm", "sse") in monitor.calls and ("wait", 120) in monitor.calls
-    assert any(call[:3] == ("fill", "main:input[name='username']", "tester") for call in page.calls)
+    assert any(call[:3] == ("fill", "main:input[placeholder='w3账号']", "tester") for call in page.calls)
+    assert any(call[:3] == ("fill", "main:input[type='password']", "secret") for call in page.calls)
     assert any(call[:3] == ("fill", "frame(#frame):#question", "问题") for call in page.calls)
     assert any(call[0] == "reload" for call in page.calls)
 
@@ -78,3 +82,27 @@ def test_fixed_workflow_does_not_require_login_when_hidden(monkeypatch):
     )
     asyncio.run(executor.initialize())
     assert not any(call[0] == "fill" for call in page.calls)
+
+
+def test_fixed_workflow_runs_before_case_steps_and_question_nth():
+    from browser_ai_test.models import PlaywrightStep
+
+    page = FakePage(); monitor = FakeMonitor()
+    workflow = WorkflowConfig(
+        before_case_steps=[PlaywrightStep(action="click", selector=".chat-input-icon")],
+        question_selector=".wise-input span", question_nth=3,
+        send_selector=".send", answer_selector=".answer", target="iframe",
+        refresh_action="none",
+    )
+    executor = FixedPlaywrightExecutor(
+        page, monitor, SystemConfig(url="https://test", iframe_selector="#methodCopilot"),
+        UploadConfig(), workflow, 30,
+    )
+    case = CaseModel(
+        id="1", name="qa", question="根据文档生成接口",
+        expected=ExpectedConfig(type="keyword", values=["接口"]),
+    )
+    result = asyncio.run(executor.execute(case))
+    assert result.steps == 4
+    assert any(call[0:2] == ("click", "frame(#methodCopilot):.chat-input-icon") for call in page.calls)
+    assert any(call[:3] == ("fill", "frame(#methodCopilot):.wise-input span:nth(3)", "根据文档生成接口") for call in page.calls)
