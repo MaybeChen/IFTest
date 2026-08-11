@@ -1,7 +1,5 @@
-from __future__ import annotations
-
 import json
-from typing import Any
+from typing import Any, cast
 
 from browser_ai_test.browser.stream_monitor import StreamMonitor, StreamMonitorError, StreamTimeoutError
 from browser_ai_test.browser.playwright_steps import execute_playwright_steps
@@ -62,8 +60,17 @@ def create_monitor_tools(
             return ActionResult(error=str(exc))
 
     @tools.action(description="点击发送之前准备并清空 CDP 流监听器。")
-    async def arm_stream_monitor(protocol: Protocol = "auto") -> ActionResult:
-        return ActionResult(extracted_content=monitor.arm(protocol))
+    async def arm_stream_monitor(protocol: str = "auto") -> ActionResult:
+        # Keep the public action annotation concrete. browser-use 0.11 builds a
+        # dynamic AgentOutput model from it and cannot resolve a postponed
+        # project-local `Protocol` forward reference.
+        if protocol not in {"sse", "websocket", "http", "auto"}:
+            return ActionResult(
+                error="protocol 必须是 sse、websocket、http 或 auto"
+            )
+        return ActionResult(
+            extracted_content=monitor.arm(cast(Protocol, protocol))
+        )
 
     @tools.action(description="点击发送后等待 CDP 确认业务流完成；不得跳过或用 sleep 替代。")
     async def wait_stream_done(timeout_seconds: int) -> ActionResult:

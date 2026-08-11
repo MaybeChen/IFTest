@@ -467,6 +467,30 @@ browser-ai-test doctor
 - 确认配置没有写成带 Markdown 的 `[http://...](http://...)`，必须是纯 URL；
 - 不要把 9222 暴露到公网。
 
+### `AgentOutput` 提示 `Protocol` is not fully defined
+
+browser-use 0.11 会根据自定义 Tool 的函数签名动态创建 Pydantic `AgentOutput`。旧实现启用了
+postponed annotations，并把项目内的 `Protocol` 类型别名暴露在 action 参数上，导致动态
+模型只看到无法解析的字符串 `"Protocol"`，从而每一步都报：
+
+```text
+AgentOutput is not fully defined; you should define Protocol
+```
+
+现在 `arm_stream_monitor` 对 browser-use 暴露具体的 `str` 参数，在 Tool 内显式验证
+`sse`、`websocket`、`http`、`auto` 后再转换为内部类型，因此不再产生 Pydantic forward
+reference。这个错误与网页、Chrome CDP 和 Qwen 本身无关。
+
+如果修复后只剩：
+
+```text
+ModelProviderError: Connection error
+```
+
+这是另一个独立问题，表示 OpenAI-compatible 模型端点不可达。检查 `llm.base_url` 是否包含
+服务要求的 `/v1`、API Key 环境变量是否在当前终端生效、网关证书/代理/防火墙以及 Qwen
+服务是否支持 `/chat/completions`。不要把模型连接错误当成 CDP 或 StreamMonitor 错误。
+
 ### 创建 `.venv` 后没有 `.venv/bin`，只有 `.venv/Scripts`
 
 这是 Windows 的正常目录结构，不代表虚拟环境创建失败。PowerShell 执行

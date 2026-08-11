@@ -70,7 +70,10 @@ class AgentExecutor:
         if callable(raw):
             raw = raw()
         if raw is None:
-            raise RuntimeError("Agent 未返回结构化页面答案")
+            history_errors = self._history_metric(history, "errors", []) or []
+            detail = "; ".join(str(error) for error in history_errors if error)
+            suffix = f"；Browser Use errors: {detail}" if detail else ""
+            raise RuntimeError(f"Agent 未返回结构化页面答案{suffix}")
         result = raw if isinstance(raw, AgentExecutionResult) else AgentExecutionResult.model_validate(raw)
         steps = self._history_metric(history, "number_of_steps", 0)
         history_duration = self._history_metric(history, "total_duration_seconds", duration)

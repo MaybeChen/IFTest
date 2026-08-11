@@ -83,7 +83,10 @@ class TestRunner:
             logger.exception("Case %s execution failed", case.id)
             detail = str(exc)
             if not session.monitor.request_ids:
-                error_type = ErrorType.STREAM_NOT_FOUND if session.monitor.armed else ErrorType.AGENT_ERROR
+                # An executor exception before any target request is an Agent/model
+                # failure. STREAM_NOT_FOUND is reserved for a completed Agent run
+                # that never generated a matching network request.
+                error_type = ErrorType.AGENT_ERROR
             elif session.monitor.network_error:
                 error_type = ErrorType.NETWORK_ERROR
             elif not session.monitor.done_event.is_set():
