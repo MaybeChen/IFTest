@@ -28,6 +28,11 @@ async def upload_case_file(
     iframe_selector: str | None,
 ) -> Path:
     file_path = resolve_case_file(config.directory, file_name)
+    if config.trigger_selector:
+        await _upload_with_file_chooser(
+            page, file_path, config, iframe_selector
+        )
+        return file_path
     locator = await _find_file_input(page, config, iframe_selector)
     try:
         await locator.set_input_files(str(file_path), timeout=config.timeout_ms)
@@ -36,6 +41,30 @@ async def upload_case_file(
             f"上传文件失败 {file_path.name!r}, selector={config.input_selector!r}: {exc}"
         ) from exc
     return file_path
+
+
+async def _upload_with_file_chooser(
+    page: Any,
+    file_path: Path,
+    config: UploadConfig,
+    iframe_selector: str | None,
+) -> None:
+    if config.target == "iframe":
+        if not iframe_selector:
+            raise FileUploadError("upload.target=iframe 时必须配置 system.iframe_selector")
+        root = page.frame_locator(iframe_selector)
+    else:
+        root = page
+    trigger = root.locator(config.trigger_selector)
+    try:
+        async with page.expect_file_chooser(timeout=config.timeout_ms) as chooser_info:
+            await trigger.click(timeout=config.timeout_ms)
+        chooser = await chooser_info.value
+        await chooser.set_files(str(file_path))
+    except Exception as exc:
+        raise FileUploadError(
+            f"通过文件选择器上传失败 {file_path.name!r}, trigger={config.trigger_selector!r}: {exc}"
+        ) from exc
 
 
 async def _find_file_input(

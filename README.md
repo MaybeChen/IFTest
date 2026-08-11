@@ -175,10 +175,7 @@ workflow:
       target: main
       selector: ".ai-toggle-btn"
 
-  before_case_steps:
-    - action: click
-      target: iframe
-      selector: ".chat-input-icon"
+  before_case_steps: []
 
   question_selector: ".wise-input span"
   question_nth: 3
@@ -186,6 +183,7 @@ workflow:
   answer_selector: "[data-testid='assistant-answer']:last-child"
   target: iframe
   ui_timeout_ms: 15000
+  step_interval_seconds: 1
 
   # reload / click / none
   refresh_action: click
@@ -194,6 +192,7 @@ workflow:
 upload:
   directory: "D:/browser-ai-test-files"
   input_selector: ".el-upload input[type='file'], input.el-upload"
+  trigger_selector: ".chat-input-icon"
   target: iframe
   timeout_ms: 10000
 
@@ -367,6 +366,15 @@ cases:
 ```
 
 刷新在 `finally` 中执行，即使上传、selector 或网络等待失败，也会清理界面后继续下一 Case。
+
+`workflow.step_interval_seconds` 控制普通 UI 动作之间的节奏，当前为 1 秒。这个暂停只用于
+避免页面操作过快，不用于判断后台问答是否完成；发送后仍然立即进入 CDP
+`wait_stream_done`。
+
+文件上传按钮会打开操作系统文件选择框，因此不能先普通 click 再调用
+`set_input_files()`。配置 `upload.trigger_selector` 后，执行器使用 Playwright
+`expect_file_chooser()` 在点击 `.chat-input-icon` 的同时捕获选择器，并通过
+`FileChooser.set_files()` 设置 Case 文件，弹窗不会遗留并阻塞流程。
 
 ### 刷新策略
 

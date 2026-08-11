@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -16,6 +17,7 @@ async def execute_playwright_steps(
     page: Any,
     steps: list[PlaywrightStep],
     iframe_selector: str | None,
+    interval_seconds: float = 0,
 ) -> list[str]:
     """Execute a small, auditable Playwright action DSL in declared order."""
     completed: list[str] = []
@@ -57,6 +59,9 @@ async def execute_playwright_steps(
             "Playwright step %s/%s completed: action=%s selector=%r",
             index, len(steps), step.action, step.selector,
         )
+        if interval_seconds and index < len(steps):
+            # UI pacing only; never used to decide whether a stream completed.
+            await asyncio.sleep(interval_seconds)
     return completed
 
 

@@ -25,6 +25,7 @@ class SystemConfig(BaseModel):
 class UploadConfig(BaseModel):
     directory: Path = Path("data/uploads")
     input_selector: str = "input[type='file']"
+    trigger_selector: str | None = None
     target: Literal["main", "iframe", "auto"] = "auto"
     timeout_ms: float = Field(default=10_000, gt=0)
 
@@ -52,6 +53,7 @@ class WorkflowConfig(BaseModel):
     refresh_action: Literal["reload", "click", "none"] = "reload"
     refresh_selector: str | None = None
     ui_timeout_ms: float = Field(default=10_000, gt=0)
+    step_interval_seconds: float = Field(default=1, ge=0)
 
 
 class ReportConfig(BaseModel):

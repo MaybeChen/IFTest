@@ -50,7 +50,7 @@ def test_fixed_workflow_logs_in_runs_case_and_refreshes(monkeypatch):
     workflow = WorkflowConfig(
         login=LoginConfig(enabled=True, username_env="QA_USER", password_env="QA_PASSWORD"),
         question_selector="#question", send_selector="#send", answer_selector="#answer",
-        target="iframe", refresh_action="reload",
+        target="iframe", refresh_action="reload", step_interval_seconds=0,
     )
     executor = FixedPlaywrightExecutor(
         page, monitor, SystemConfig(url="https://test", iframe_selector="#frame"),
@@ -78,7 +78,7 @@ def test_fixed_workflow_does_not_require_login_when_hidden(monkeypatch):
     page.locator = lambda selector: FakeLocator(f"main:{selector}", page.calls, visible=False)
     executor = FixedPlaywrightExecutor(
         page, FakeMonitor(), SystemConfig(url="https://test", iframe_selector="#frame"),
-        UploadConfig(), WorkflowConfig(login=LoginConfig(enabled=True)), 30,
+        UploadConfig(), WorkflowConfig(login=LoginConfig(enabled=True), step_interval_seconds=0), 30,
     )
     asyncio.run(executor.initialize())
     assert not any(call[0] == "fill" for call in page.calls)
@@ -92,7 +92,7 @@ def test_fixed_workflow_runs_before_case_steps_and_question_nth():
         before_case_steps=[PlaywrightStep(action="click", selector=".chat-input-icon")],
         question_selector=".wise-input span", question_nth=3,
         send_selector=".send", answer_selector=".answer", target="iframe",
-        refresh_action="none",
+        refresh_action="none", step_interval_seconds=0,
     )
     executor = FixedPlaywrightExecutor(
         page, monitor, SystemConfig(url="https://test", iframe_selector="#methodCopilot"),

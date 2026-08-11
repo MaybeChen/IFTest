@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from typing import Any
@@ -38,7 +39,8 @@ class FixedPlaywrightExecutor:
         await self.page.goto(self.system.url, wait_until="domcontentloaded")
         await self._login_if_needed()
         await execute_playwright_steps(
-            self.page, self.workflow.setup_steps, self.system.iframe_selector
+            self.page, self.workflow.setup_steps, self.system.iframe_selector,
+            self.workflow.step_interval_seconds,
         )
 
     async def execute(self, case: TestCase) -> WorkflowRun:
@@ -50,6 +52,7 @@ class FixedPlaywrightExecutor:
                     self.page,
                     self.workflow.before_case_steps,
                     self.system.iframe_selector,
+                    self.workflow.step_interval_seconds,
                 )
                 steps += len(self.workflow.before_case_steps)
             if case.file:
@@ -57,6 +60,7 @@ class FixedPlaywrightExecutor:
                     self.page, case.file, self.upload, self.system.iframe_selector
                 )
                 steps += 1
+                await self._pause()
             root = self._root()
             question_locator = root.locator(self.workflow.question_selector)
             if self.workflow.question_nth is not None:
@@ -65,6 +69,7 @@ class FixedPlaywrightExecutor:
                 case.question, timeout=self.workflow.ui_timeout_ms
             )
             steps += 1
+            await self._pause()
             protocol = case.stream.protocol or self.monitor.target_protocol
             self.monitor.arm(protocol)
             await root.locator(self.workflow.send_selector).click(
@@ -87,6 +92,10 @@ class FixedPlaywrightExecutor:
             # A timeout or selector error must not leave input/attachments behind
             # for the next serial Case.
             await self._refresh()
+
+    async def _pause(self) -> None:
+        if self.workflow.step_interval_seconds:
+            await asyncio.sleep(self.workflow.step_interval_seconds)
 
     def _root(self) -> Any:
         if self.workflow.target == "main":
@@ -113,10 +122,13 @@ class FixedPlaywrightExecutor:
         await self.page.locator(login.username_selector).fill(
             username, timeout=login.timeout_ms
         )
+        await self._pause()
         await self.page.locator(login.password_selector).fill(
             password, timeout=login.timeout_ms
         )
+        await self._pause()
         await self.page.locator(login.submit_selector).click(timeout=login.timeout_ms)
+        await self._pause()
 
     async def _refresh(self) -> None:
         if self.workflow.refresh_action == "none":

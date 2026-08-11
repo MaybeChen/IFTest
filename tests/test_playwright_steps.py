@@ -108,3 +108,19 @@ def test_semantic_locator_and_nth_are_supported():
     assert calls[0][0].startswith("main:role=button:")
     assert "'name': '新增'" in calls[0][0]
     assert calls[0][0].endswith(":nth(1)")
+
+
+def test_interval_is_applied_only_between_steps(monkeypatch):
+    sleeps = []
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    monkeypatch.setattr("browser_ai_test.browser.playwright_steps.asyncio.sleep", fake_sleep)
+    steps = [
+        PlaywrightStep(action="click", selector="#one", target="main"),
+        PlaywrightStep(action="click", selector="#two", target="main"),
+        PlaywrightStep(action="click", selector="#three", target="main"),
+    ]
+    asyncio.run(execute_playwright_steps(FakePage([]), steps, None, interval_seconds=1))
+    assert sleeps == [1, 1]

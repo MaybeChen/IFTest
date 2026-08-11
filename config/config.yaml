@@ -10,6 +10,8 @@ system:
 upload:
   directory: "data/uploads"
   input_selector: ".el-upload input[type='file'], input.el-upload"
+  # 捕获点击后出现的文件选择器并由 Playwright 直接设置文件。
+  trigger_selector: ".chat-input-icon"
   target: iframe
   timeout_ms: 10000
 workflow:
@@ -61,10 +63,7 @@ workflow:
     - action: click
       target: main
       selector: ".ai-toggle-btn"
-  before_case_steps:
-    - action: click
-      target: iframe
-      selector: ".chat-input-icon"
+  before_case_steps: []
   question_selector: ".wise-input span"
   question_nth: 3
   send_selector: ".wise-input-send"
@@ -73,6 +72,8 @@ workflow:
   refresh_action: reload
   refresh_selector: null
   ui_timeout_ms: 10000
+  # UI 操作之间暂停 1 秒；不参与问答完成判断。
+  step_interval_seconds: 1
 stream:
   protocol: "sse"
   url_keywords:
