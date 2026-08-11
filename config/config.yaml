@@ -1,0 +1,105 @@
+browser:
+  cdp_url: "http://127.0.0.1:9222"
+  headless: false
+  cdp_timeout_seconds: 10
+  bypass_proxy_for_loopback: true
+system:
+  url: "http://7.212.32.169:8081/index.html#/login"
+  iframe_hint: "business iframe"
+  iframe_selector: "#methodCopilot"
+upload:
+  directory: "data/uploads"
+  input_selector: ".el-upload input[type='file'], input.el-upload"
+  # 捕获点击后出现的文件选择器并由 Playwright 直接设置文件。
+  trigger_selector: ".chat-input-icon"
+  target: iframe
+  timeout_ms: 10000
+workflow:
+  login:
+    enabled: true
+    detect_selector: "input[placeholder='w3账号']"
+    username_env: USER_NAME
+    password_env: USER_PASSWORD
+    username_selector: "input[placeholder='w3账号']"
+    # Vue/Element Plus 生成的 el-id 会变化，使用稳定的 type=password。
+    password_selector: "input[type='password']"
+    submit_selector: "button:has-text('登录')"
+  # 在这里编辑固定 Playwright 初始化步骤：点击 testcc、新增 auto_api、打开 AI 助手等。
+  # 每条步骤支持 action/target/selector/value/timeout_ms；完整示例见 README。
+  setup_steps:
+    - action: click
+      target: main
+      locator_type: text
+      selector: "Auto_EVA存量BES"
+      exact: false
+      timeout_ms: 30000
+    # 产品详情是异步渲染的，先等待“新增”按钮可见，再点击。
+    - action: wait_visible
+      target: main
+      locator_type: role
+      selector: button
+      name: "新增"
+      exact: false
+      nth: 0
+      timeout_ms: 30000
+    - action: click
+      target: main
+      locator_type: role
+      selector: button
+      name: "新增"
+      exact: false
+      nth: 0
+      timeout_ms: 30000
+    - action: fill
+      target: main
+      selector: ".el-form-item:has-text('API名称') input"
+      value: "auto_api"
+    - action: click
+      target: main
+      locator_type: role
+      selector: button
+      name: "确认"
+      exact: true
+    - action: click
+      target: main
+      selector: ".ai-toggle-btn"
+  before_case_steps: []
+  # Recorder 在上传后先关闭上传层、聚焦输入区，再填充 iframe 内第 4 个 span。
+  after_upload_steps:
+    - action: click
+      target: iframe
+      selector: ".cb-chatbot-content"
+    - action: click
+      target: iframe
+      selector: ".wise-input"
+  question_selector: "span"
+  question_nth: 3
+  send_selector: ".wise-input-send"
+  answer_selector: "[data-testid='answer']"
+  target: iframe
+  refresh_action: reload
+  refresh_selector: null
+  ui_timeout_ms: 10000
+  # UI 操作之间暂停 1 秒；不参与问答完成判断。
+  step_interval_seconds: 1
+stream:
+  protocol: "sse"
+  url_keywords:
+    - "/api/chat/stream"
+    - "/api/generate"
+  timeout_seconds: 120
+  done_markers:
+    - "[DONE]"
+    - '"type":"done"'
+    - '"status":"completed"'
+    - '"event":"finish"'
+database:
+  path: "data/results.db"
+runner:
+  continue_on_failure: true
+  case_interval_seconds: 1
+  retry_count: 0
+logging:
+  level: INFO
+report:
+  html_directory: "reports"
