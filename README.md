@@ -387,18 +387,34 @@ workflow:
 
 ## 执行
 
+推荐使用模块方式执行，它不依赖 Windows 是否把 console script 加入当前 PATH：
+
+```powershell
+python -m browser_ai_test.cli doctor
+python -m browser_ai_test.cli list
+python -m browser_ai_test.cli run
+python -m browser_ai_test.cli run --case FILE_QA_001
+python -m browser_ai_test.cli report
+```
+
+Windows 还可以直接使用仓库自带的启动脚本；它会固定调用项目的
+`.venv\Scripts\python.exe`：
+
+```powershell
+.\browser-ai-test.cmd doctor
+.\browser-ai-test.cmd list
+.\browser-ai-test.cmd run --case FILE_QA_001
+.\browser-ai-test.cmd report
+```
+
+完成 `python -m pip install -e ".[test]"` 且已激活虚拟环境后，也可以使用安装生成的短命令：
+
 ```bash
 browser-ai-test list
 browser-ai-test run
 browser-ai-test run --case FILE_QA_001
 browser-ai-test run --limit 10
 browser-ai-test report
-```
-
-也可以：
-
-```bash
-python -m browser_ai_test.cli run
 ```
 
 ## HTML 报告
@@ -422,6 +438,41 @@ data/results.db
 包含 `runs` 和 `case_results`。程序会自动迁移早期版本的列名。
 
 ## 常见问题
+
+### PowerShell 提示 `browser-ai-test is not recognized`
+
+这表示当前 PowerShell 找不到安装时生成的 console script，通常有以下原因：
+
+1. `.venv` 尚未激活；
+2. 项目还没有执行 editable install；
+3. 安装使用的 Python 和当前终端的 Python 不是同一个；
+4. PowerShell 是在安装前打开的，PATH 尚未刷新。
+
+在项目根目录依次运行：
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[test]"
+python -m pip show browser-ai-test
+python -c "import sys, browser_ai_test; print(sys.executable); print(browser_ai_test.__file__)"
+Get-ChildItem .\.venv\Scripts\browser-ai-test*
+```
+
+正常情况下，最后一条命令会显示类似：
+
+```text
+.venv\Scripts\browser-ai-test.exe
+```
+
+无论 console script 是否进入 PATH，以下两种方式都可以运行：
+
+```powershell
+python -m browser_ai_test.cli doctor
+.\browser-ai-test.cmd doctor
+```
+
+注意：PowerShell 默认不会从当前目录搜索可执行文件，因此即使项目根目录存在
+`browser-ai-test.cmd`，也必须写成 `.\browser-ai-test.cmd`，不能省略 `.\`。
 
 ### `/json/version` 返回 504
 
