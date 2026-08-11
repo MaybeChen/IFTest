@@ -64,7 +64,15 @@ workflow:
       target: main
       selector: ".ai-toggle-btn"
   before_case_steps: []
-  question_selector: ".wise-input span"
+  # Recorder 在上传后先关闭上传层、聚焦输入区，再填充 iframe 内第 4 个 span。
+  after_upload_steps:
+    - action: click
+      target: iframe
+      selector: ".cb-chatbot-content"
+    - action: click
+      target: iframe
+      selector: ".wise-input"
+  question_selector: "span"
   question_nth: 3
   send_selector: ".wise-input-send"
   answer_selector: "[data-testid='answer']"

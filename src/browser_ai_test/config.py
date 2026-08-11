@@ -45,6 +45,7 @@ class WorkflowConfig(BaseModel):
     login: LoginConfig = Field(default_factory=LoginConfig)
     setup_steps: list[PlaywrightStep] = Field(default_factory=list)
     before_case_steps: list[PlaywrightStep] = Field(default_factory=list)
+    after_upload_steps: list[PlaywrightStep] = Field(default_factory=list)
     question_selector: str = "textarea"
     question_nth: int | None = None
     send_selector: str = "button[type='submit']"

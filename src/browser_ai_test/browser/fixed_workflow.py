@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import time
 from typing import Any
@@ -10,6 +11,8 @@ from browser_ai_test.browser.playwright_steps import execute_playwright_steps
 from browser_ai_test.browser.stream_monitor import StreamMonitor
 from browser_ai_test.config import SystemConfig, UploadConfig, WorkflowConfig
 from browser_ai_test.models import UIExecutionResult, WorkflowRun, TestCase
+
+logger = logging.getLogger(__name__)
 
 
 class FixedWorkflowError(RuntimeError):
@@ -56,15 +59,29 @@ class FixedPlaywrightExecutor:
                 )
                 steps += len(self.workflow.before_case_steps)
             if case.file:
+                logger.info("Case %s: uploading file %r", case.id, case.file)
                 await upload_case_file(
                     self.page, case.file, self.upload, self.system.iframe_selector
                 )
                 steps += 1
                 await self._pause()
+                if self.workflow.after_upload_steps:
+                    await execute_playwright_steps(
+                        self.page,
+                        self.workflow.after_upload_steps,
+                        self.system.iframe_selector,
+                        self.workflow.step_interval_seconds,
+                    )
+                    steps += len(self.workflow.after_upload_steps)
+                    await self._pause()
             root = self._root()
             question_locator = root.locator(self.workflow.question_selector)
             if self.workflow.question_nth is not None:
                 question_locator = question_locator.nth(self.workflow.question_nth)
+            logger.info(
+                "Case %s: filling question via selector=%r nth=%r",
+                case.id, self.workflow.question_selector, self.workflow.question_nth,
+            )
             await question_locator.fill(
                 case.question, timeout=self.workflow.ui_timeout_ms
             )
@@ -72,6 +89,7 @@ class FixedPlaywrightExecutor:
             await self._pause()
             protocol = case.stream.protocol or self.monitor.target_protocol
             self.monitor.arm(protocol)
+            logger.info("Case %s: clicking send selector=%r", case.id, self.workflow.send_selector)
             await root.locator(self.workflow.send_selector).click(
                 timeout=self.workflow.ui_timeout_ms
             )

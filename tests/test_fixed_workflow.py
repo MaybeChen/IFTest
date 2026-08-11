@@ -84,13 +84,24 @@ def test_fixed_workflow_does_not_require_login_when_hidden(monkeypatch):
     assert not any(call[0] == "fill" for call in page.calls)
 
 
-def test_fixed_workflow_runs_before_case_steps_and_question_nth():
+def test_fixed_workflow_runs_upload_focus_steps_and_question_nth(monkeypatch):
     from browser_ai_test.models import PlaywrightStep
+
+    async def fake_upload(*args):
+        page.calls.append(("upload", args[1]))
+
+    monkeypatch.setattr(
+        "browser_ai_test.browser.fixed_workflow.upload_case_file", fake_upload
+    )
 
     page = FakePage(); monitor = FakeMonitor()
     workflow = WorkflowConfig(
         before_case_steps=[PlaywrightStep(action="click", selector=".chat-input-icon")],
-        question_selector=".wise-input span", question_nth=3,
+        after_upload_steps=[
+            PlaywrightStep(action="click", selector=".cb-chatbot-content"),
+            PlaywrightStep(action="click", selector=".wise-input"),
+        ],
+        question_selector="span", question_nth=3,
         send_selector=".send", answer_selector=".answer", target="iframe",
         refresh_action="none", step_interval_seconds=0,
     )
@@ -99,10 +110,14 @@ def test_fixed_workflow_runs_before_case_steps_and_question_nth():
         UploadConfig(), workflow, 30,
     )
     case = CaseModel(
-        id="1", name="qa", question="根据文档生成接口",
+        id="1", name="qa", file="manual.docx", question="根据文档生成接口",
         expected=ExpectedConfig(type="keyword", values=["接口"]),
     )
     result = asyncio.run(executor.execute(case))
-    assert result.steps == 4
+    assert result.steps == 7
     assert any(call[0:2] == ("click", "frame(#methodCopilot):.chat-input-icon") for call in page.calls)
-    assert any(call[:3] == ("fill", "frame(#methodCopilot):.wise-input span:nth(3)", "根据文档生成接口") for call in page.calls)
+    upload_index = page.calls.index(("upload", "manual.docx"))
+    content_index = next(i for i, call in enumerate(page.calls) if call[0:2] == ("click", "frame(#methodCopilot):.cb-chatbot-content"))
+    input_index = next(i for i, call in enumerate(page.calls) if call[0:2] == ("click", "frame(#methodCopilot):.wise-input"))
+    fill_index = next(i for i, call in enumerate(page.calls) if call[:3] == ("fill", "frame(#methodCopilot):span:nth(3)", "根据文档生成接口"))
+    assert upload_index < content_index < input_index < fill_index

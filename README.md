@@ -176,8 +176,15 @@ workflow:
       selector: ".ai-toggle-btn"
 
   before_case_steps: []
+  after_upload_steps:
+    - action: click
+      target: iframe
+      selector: ".cb-chatbot-content"
+    - action: click
+      target: iframe
+      selector: ".wise-input"
 
-  question_selector: ".wise-input span"
+  question_selector: "span"
   question_nth: 3
   send_selector: ".wise-input-send"
   answer_selector: "[data-testid='assistant-answer']:last-child"
@@ -375,6 +382,27 @@ cases:
 `set_input_files()`。配置 `upload.trigger_selector` 后，执行器使用 Playwright
 `expect_file_chooser()` 在点击 `.chat-input-icon` 的同时捕获选择器，并通过
 `FileChooser.set_files()` 设置 Case 文件，弹窗不会遗留并阻塞流程。
+
+文件设置完成后不能直接使用原先的 `.wise-input span` 后代定位，因为 Recorder 的真实
+顺序是先点击 `.cb-chatbot-content` 关闭上传层，再点击 `.wise-input` 聚焦，最后从 iframe
+全局的 `span` 中选择 `nth(3)` 填写。因此当前流程增加：
+
+```yaml
+workflow:
+  after_upload_steps:
+    - action: click
+      target: iframe
+      selector: ".cb-chatbot-content"
+    - action: click
+      target: iframe
+      selector: ".wise-input"
+  question_selector: "span"
+  question_nth: 3
+  send_selector: ".wise-input-send"
+```
+
+运行日志会分别打印 `uploading file`、`filling question` 和 `clicking send`。如果再次中断，
+可以直接判断失败发生在上传、输入定位还是发送按钮。
 
 ### 刷新策略
 
