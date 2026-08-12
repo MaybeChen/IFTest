@@ -489,6 +489,32 @@ stream:
 `SSE event received`；看到 `SSE business completion event matched` 后，才表示
 `wait_done()` 已经返回并将开始整页刷新。
 
+### 查看 SSE 日志
+
+运行 `python -m browser_ai_test.cli run` 的 PowerShell 窗口会实时显示 SSE/CDP 日志，
+同时默认写入：
+
+```text
+reports/browser-ai-test.log
+```
+
+PowerShell 可另开窗口实时查看：
+
+```powershell
+Get-Content .\reports\browser-ai-test.log -Wait
+```
+
+只筛选 SSE：
+
+```powershell
+Get-Content .\reports\browser-ai-test.log -Wait |
+  Select-String "SSE event received|SSE business completion|ERR_ABORTED"
+```
+
+应重点检查 `tracked=true`、`armed=true`，以及最后是否出现
+`event_name='onComplete'` 和 `SSE business completion event matched`。日志文件位置可通过
+`logging.file` 修改；设置为 `null` 时只输出到控制台。
+
 当前默认 `runner.pass_condition: network_complete`：只要目标请求收到完整的
 `event:onComplete`，Case 就记为 PASS。Keyword/Regex 校验仍会执行并记录到
 `answer_ok` 和报告中，但不会改变最终 PASS。若需要恢复严格标准，可配置：

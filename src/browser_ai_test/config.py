@@ -92,6 +92,7 @@ class RunnerConfig(BaseModel):
 
 class LoggingConfig(BaseModel):
     level: str = "INFO"
+    file: Path | None = Path("reports/browser-ai-test.log")
 
 
 class AppConfig(BaseModel):

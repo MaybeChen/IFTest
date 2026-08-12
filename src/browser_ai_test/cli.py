@@ -62,7 +62,18 @@ def run(
 ) -> None:
     """串行执行测试并保存 SQLite 结果。"""
     settings = load_config(config)
-    logging.basicConfig(level=getattr(logging, settings.logging.level.upper(), logging.INFO), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    log_handlers: list[logging.Handler] = [logging.StreamHandler()]
+    if settings.logging.file:
+        settings.logging.file.parent.mkdir(parents=True, exist_ok=True)
+        log_handlers.append(logging.FileHandler(settings.logging.file, encoding="utf-8"))
+    logging.basicConfig(
+        level=getattr(logging, settings.logging.level.upper(), logging.INFO),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        handlers=log_handlers,
+        force=True,
+    )
+    if settings.logging.file:
+        logging.getLogger(__name__).info("Runtime log file: %s", settings.logging.file)
     selected = load_cases(cases)
     if case_id:
         selected = [item for item in selected if item.id == case_id]
