@@ -515,17 +515,22 @@ Get-Content .\reports\browser-ai-test.log -Wait |
 `event_name='onComplete'` 和 `SSE business completion event matched`。日志文件位置可通过
 `logging.file` 修改；设置为 `null` 时只输出到控制台。
 
-如果连 `SSE event received` 都没有，常见原因是 `#methodCopilot` 是跨进程 iframe
-（OOPIF），主页面的 CDP Session 看不到它的 Network 事件。Runner 现在会在每条 Case
-发送前为当前 iframe 单独创建 CDP Session；正常日志应先出现：
+如果连 `SSE event received` 都没有，Runner 会在每条 Case 发送前检查 iframe 的 CDP
+归属。跨进程 iframe（OOPIF）会创建独立 Session；同进程 iframe 已经包含在主页面
+Session 中，Playwright 不允许重复创建，此时会安全复用父 Session，而不是让 Case 失败。
+正常日志会出现以下二者之一：
 
 ```text
-CDP Network monitor attached to iframe: #methodCopilot
+CDP Network monitor attached to separate iframe: #methodCopilot
+# 或
+iframe uses parent CDP session; existing Network monitor retained: #methodCopilot
 Tracked stream request: request_id=... type=EventSource url=...
 ```
 
-整页刷新会创建新的 iframe，因此每条 Case 都会重新 attach，不能复用刷新前的 iframe
-CDP Session。
+你日志中的 `This frame does not have a separate CDP session` 表示 `#methodCopilot` 是
+**同进程 iframe**，并不是 SSE 或页面错误。旧实现错误地把 Playwright 的这个说明当成
+WORKFLOW_ERROR，所以在输入问题前就进入了 `finally` 刷新。现在该情况会继续使用已经在
+启动时挂载的 Page CDP Session，然后正常输入、发送并等待 SSE。
 
 当前默认 `runner.pass_condition: network_complete`：只要目标请求收到完整的
 `event:onComplete`，Case 就记为 PASS。Keyword/Regex 校验仍会执行并记录到

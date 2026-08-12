@@ -5,7 +5,11 @@ import logging
 from types import TracebackType
 from playwright.async_api import Browser, BrowserContext, CDPSession, Frame, Page, Playwright, async_playwright
 
-from browser_ai_test.browser.cdp import ensure_loopback_no_proxy, fetch_cdp_version
+from browser_ai_test.browser.cdp import (
+    ensure_loopback_no_proxy,
+    fetch_cdp_version,
+    frame_uses_parent_cdp_session,
+)
 from browser_ai_test.browser.stream_monitor import StreamMonitor
 from browser_ai_test.config import BrowserConfig, StreamConfig
 
@@ -51,7 +55,7 @@ class SharedBrowserSession:
             raise
 
     async def attach_frame_monitor(self, iframe_selector: str | None) -> None:
-        """Attach Network listeners to an iframe target, including OOPIFs."""
+        """Attach Network listeners to an OOPIF or reuse the parent session."""
         if not iframe_selector or not self.context or not self.page:
             return
         if self.frame_cdp_session:
@@ -61,9 +65,20 @@ class SharedBrowserSession:
         frame: Frame | None = await handle.content_frame() if handle else None
         if frame is None:
             raise RuntimeError(f"无法为 iframe 创建 CDP Session: {iframe_selector!r}")
-        self.frame_cdp_session = await self.context.new_cdp_session(frame)
+        try:
+            self.frame_cdp_session = await self.context.new_cdp_session(frame)
+        except Exception as exc:
+            # Same-process iframes are already covered by the Page CDP session.
+            # Playwright deliberately rejects creating a second session for them.
+            if frame_uses_parent_cdp_session(exc):
+                logger.info(
+                    "iframe uses parent CDP session; existing Network monitor retained: %s",
+                    iframe_selector,
+                )
+                return
+            raise
         await self.monitor.attach(self.frame_cdp_session)
-        logger.info("CDP Network monitor attached to iframe: %s", iframe_selector)
+        logger.info("CDP Network monitor attached to separate iframe: %s", iframe_selector)
 
     async def close(self) -> None:
         if self.frame_cdp_session:

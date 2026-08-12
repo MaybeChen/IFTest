@@ -70,3 +70,13 @@ def test_preflight_requires_websocket_debugger_url(monkeypatch):
     monkeypatch.setattr(cdp, "build_opener", lambda handler: opener)
     with pytest.raises(cdp.CDPConnectionError, match="webSocketDebuggerUrl"):
         cdp.fetch_cdp_version("http://localhost:9222", 3)
+
+
+def test_same_process_iframe_error_is_recognized_as_parent_session():
+    error = RuntimeError(
+        "BrowserContext.new_cdp_session: This frame does not have a separate "
+        "CDP session, it is a part of the parent frame's session"
+    )
+
+    assert cdp.frame_uses_parent_cdp_session(error)
+    assert not cdp.frame_uses_parent_cdp_session(RuntimeError("Target closed"))

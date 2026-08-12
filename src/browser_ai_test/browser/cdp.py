@@ -12,6 +12,11 @@ class CDPConnectionError(ConnectionError):
     """The external Chrome debugging endpoint is unavailable or invalid."""
 
 
+def frame_uses_parent_cdp_session(error: BaseException) -> bool:
+    """Return whether Playwright says an iframe shares its parent's target."""
+    return "part of the parent frame's session" in str(error)
+
+
 def ensure_loopback_no_proxy(cdp_url: str) -> None:
     """Prevent HTTP clients from proxying local CDP traffic."""
     hostname = urlparse(cdp_url).hostname
