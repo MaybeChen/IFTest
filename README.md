@@ -210,8 +210,7 @@ stream:
   # 最长等待 2 小时；收到业务 done marker 后立即结束等待。
   timeout_seconds: 7200
   done_markers:
-    - "[DONE]"
-    - '"status":"completed"'
+    - "event:onComplete"
 
 database:
   path: "data/results.db"
@@ -426,12 +425,24 @@ workflow:
 
 ## 网络完成判定
 
-- SSE：`Network.eventSourceMessageReceived` payload 命中 done marker；
+- SSE：`Network.eventSourceMessageReceived` 的 `eventName` 与 `data` 组合内容命中 done marker；
 - WebSocket：frame payload 命中 done marker，不等待 socket close；
 - HTTP：目标请求收到 `Network.loadingFinished`；
 - `auto`：根据实际 CDP 事件自动识别。
 
 只监听 URL 命中 `stream.url_keywords` 的请求。TTFT 和 Stream Total 全部使用 CDP monotonic timestamp 计算。
+
+例如服务最后返回空数据事件：
+
+```text
+event:onComplete
+data:
+```
+
+应配置 `done_markers: ["event:onComplete"]`。不要使用 `"done":false`、
+`event:onPlan` 或 `state:success` 作为结束条件，因为它们在真正结束前也会出现。
+SSE 已发出 `onComplete` 后，即便 Chrome 随后对连接报告 `net::ERR_ABORTED`，该请求也按
+业务成功处理。
 
 ## 执行
 

@@ -56,13 +56,24 @@ class StreamMonitor:
         if protocol and self.detected_protocol is None:
             self.detected_protocol = protocol
 
-    def _payload(self, request_id: str, timestamp: float, data: str, protocol: Protocol) -> None:
+    def _payload(
+        self,
+        request_id: str,
+        timestamp: float,
+        data: str,
+        protocol: Protocol,
+        event_name: str = "",
+    ) -> None:
         if not self.armed or request_id not in self.request_ids or not self._accepts(protocol):
             return
         self.detected_protocol = protocol
         if self.first_message_ts is None:
             self.first_message_ts = timestamp
-        if any(marker in data for marker in self.done_markers):
+        # CDP exposes SSE's `event:` and `data:` as separate fields.  Include
+        # both in matching so an empty-data terminal event (for example
+        # `event:onComplete`) can be used as an exact business completion signal.
+        payload = f"event:{event_name}\ndata:{data}" if event_name else data
+        if any(marker in payload for marker in self.done_markers):
             self.done_ts = timestamp
             self.done_event.set()
 
@@ -87,7 +98,13 @@ class StreamMonitor:
             self.detected_protocol = "http"
 
     def on_event_source_message_received(self, event: dict[str, Any]) -> None:
-        self._payload(str(event.get("requestId", "")), float(event.get("timestamp", 0)), str(event.get("data", "")), "sse")
+        self._payload(
+            str(event.get("requestId", "")),
+            float(event.get("timestamp", 0)),
+            str(event.get("data", "")),
+            "sse",
+            str(event.get("eventName", "")),
+        )
 
     def on_websocket_created(self, event: dict[str, Any]) -> None:
         if self.armed and self._accepts("websocket") and self._url_matches(str(event.get("url", ""))):
@@ -113,7 +130,11 @@ class StreamMonitor:
         self.done_event.set()
 
     def on_loading_failed(self, event: dict[str, Any]) -> None:
-        if self.armed and str(event.get("requestId", "")) in self.request_ids:
+        if (
+            self.armed
+            and not self.done_event.is_set()
+            and str(event.get("requestId", "")) in self.request_ids
+        ):
             self.network_error = str(event.get("errorText", "Network.loadingFailed"))
             self.done_event.set()
 

@@ -33,6 +33,38 @@ def test_sse_completed():
     assert result.stream_total_ms == pytest.approx(2000)
 
 
+def test_sse_empty_data_on_complete_event_finishes_stream():
+    item = StreamMonitor(["/api/stream"], ["event:onComplete"])
+    item.arm("sse")
+    request(item, kind="EventSource")
+    item.on_event_source_message_received(
+        {"requestId": "1", "timestamp": 10.5, "eventName": "onResult", "data": '{"state":"success","done":false}'}
+    )
+    assert not item.done_event.is_set()
+
+    item.on_event_source_message_received(
+        {"requestId": "1", "timestamp": 12, "eventName": "onComplete", "data": ""}
+    )
+
+    result = asyncio.run(item.wait_done(0.1))
+    assert result.protocol == "sse"
+    assert result.stream_total_ms == pytest.approx(2000)
+
+
+def test_loading_failed_after_business_complete_is_ignored():
+    item = StreamMonitor(["/api/stream"], ["event:onComplete"])
+    item.arm("sse")
+    request(item, kind="EventSource")
+    item.on_event_source_message_received(
+        {"requestId": "1", "timestamp": 12, "eventName": "onComplete", "data": ""}
+    )
+    item.on_loading_failed({"requestId": "1", "errorText": "net::ERR_ABORTED"})
+
+    result = asyncio.run(item.wait_done(0.1))
+    assert result.completed
+    assert item.network_error is None
+
+
 def test_websocket_completed_without_close():
     item = monitor("websocket")
     item.on_websocket_created({"requestId": "ws", "url": "wss://test/api/stream", "timestamp": 20})
