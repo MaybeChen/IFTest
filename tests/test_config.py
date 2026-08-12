@@ -19,3 +19,5 @@ def test_stream_timeout_defaults_to_two_hours() -> None:
     assert not config.stream.sse_loading_finished_is_complete
     assert config.stream.done_event_names == []
     assert config.logging.file.as_posix() == "reports/browser-ai-test.log"
+    assert config.api_detail.request_event == "getApiDetail"
+    assert config.api_detail.response_event == "getApiDetail"

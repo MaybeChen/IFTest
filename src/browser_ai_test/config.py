@@ -63,6 +63,14 @@ class ReportConfig(BaseModel):
     html_directory: Path = Path("reports")
 
 
+class ApiDetailConfig(BaseModel):
+    request_event: str = "getApiDetail"
+    response_event: str = "getApiDetail"
+    request_data: dict[str, Any] = Field(default_factory=dict)
+    target_origin: str = "*"
+    timeout_ms: float = Field(default=30_000, gt=0)
+
+
 class StreamConfig(BaseModel):
     protocol: Protocol = "auto"
     url_keywords: list[str] = Field(min_length=1)
@@ -105,6 +113,7 @@ class AppConfig(BaseModel):
     runner: RunnerConfig = Field(default_factory=RunnerConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     report: ReportConfig = Field(default_factory=ReportConfig)
+    api_detail: ApiDetailConfig = Field(default_factory=ApiDetailConfig)
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:

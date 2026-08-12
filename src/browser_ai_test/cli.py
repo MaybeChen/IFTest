@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
+from rich.json import JSON
 from rich.table import Table
 
 from browser_ai_test.config import load_cases, load_config
@@ -16,12 +17,29 @@ from browser_ai_test.browser.cdp import (
     fetch_cdp_version,
 )
 from browser_ai_test.metrics.database import ResultsDatabase
+from browser_ai_test.browser.api_detail import ApiDetailError, fetch_api_details
+from browser_ai_test.browser.fixed_workflow import FixedPlaywrightExecutor
+from browser_ai_test.browser.session import SharedBrowserSession
 from browser_ai_test.runner import TestRunner
 
 app = typer.Typer(help="CDP 精确判定完成信号的 Web AI 自动化测试平台")
 console = Console()
 ConfigOption = Annotated[Path, typer.Option("--config", help="主配置 YAML")]
 CasesOption = Annotated[Path, typer.Option("--cases", help="Case YAML")]
+
+
+def _configure_logging(settings: object) -> None:
+    logging_config = settings.logging
+    log_handlers: list[logging.Handler] = [logging.StreamHandler()]
+    if logging_config.file:
+        logging_config.file.parent.mkdir(parents=True, exist_ok=True)
+        log_handlers.append(logging.FileHandler(logging_config.file, encoding="utf-8"))
+    logging.basicConfig(
+        level=getattr(logging, logging_config.level.upper(), logging.INFO),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        handlers=log_handlers,
+        force=True,
+    )
 
 
 @app.command("list")
@@ -62,16 +80,7 @@ def run(
 ) -> None:
     """串行执行测试并保存 SQLite 结果。"""
     settings = load_config(config)
-    log_handlers: list[logging.Handler] = [logging.StreamHandler()]
-    if settings.logging.file:
-        settings.logging.file.parent.mkdir(parents=True, exist_ok=True)
-        log_handlers.append(logging.FileHandler(settings.logging.file, encoding="utf-8"))
-    logging.basicConfig(
-        level=getattr(logging, settings.logging.level.upper(), logging.INFO),
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        handlers=log_handlers,
-        force=True,
-    )
+    _configure_logging(settings)
     if settings.logging.file:
         logging.getLogger(__name__).info("Runtime log file: %s", settings.logging.file)
     selected = load_cases(cases)
@@ -83,6 +92,40 @@ def run(
         selected = selected[:limit]
     with ResultsDatabase(settings.database.path) as database:
         asyncio.run(TestRunner(settings, database).run(selected))
+
+
+@app.command("debug-api-detail")
+def debug_api_detail(config: ConfigOption = Path("config/config.yaml")) -> None:
+    """单步打开业务页面，通过 postMessage 获取并打印所有方法详情。"""
+    settings = load_config(config)
+    _configure_logging(settings)
+
+    async def execute() -> object:
+        if not settings.system.iframe_selector:
+            raise ApiDetailError("debug-api-detail 需要配置 system.iframe_selector")
+        async with SharedBrowserSession(settings.browser, settings.stream) as session:
+            executor = FixedPlaywrightExecutor(
+                session.page,
+                session.monitor,
+                settings.system,
+                settings.upload,
+                settings.workflow,
+                settings.stream.timeout_seconds,
+            )
+            await executor.initialize()
+            return await fetch_api_details(
+                session.page,
+                settings.system.iframe_selector,
+                settings.api_detail,
+            )
+
+    try:
+        details = asyncio.run(execute())
+    except ApiDetailError as exc:
+        console.print(f"[red]API Detail FAIL[/]: {exc}")
+        raise typer.Exit(code=1) from exc
+    console.rule("API Details")
+    console.print(JSON.from_data(details))
 
 
 @app.command()

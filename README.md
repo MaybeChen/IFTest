@@ -568,6 +568,39 @@ runner:
 
 ## 执行
 
+### 单步调试方法详情 postMessage
+
+主页面监听 iframe 发出的 `getApiDetail` 后，会查询所有方法并把结果通过
+`postMessage` 返回 iframe。配置如下：
+
+```yaml
+api_detail:
+  request_event: "getApiDetail"
+  response_event: "getApiDetail"
+  request_data: {}
+  target_origin: "*"
+  timeout_ms: 30000
+```
+
+只调试该功能，不执行 Case：
+
+```powershell
+python -m browser_ai_test.cli debug-api-detail
+# 或
+browser-ai-test debug-api-detail
+```
+
+命令会执行登录和 `setup_steps`，打开 `#methodCopilot`，然后在 iframe 内先注册
+`message` 监听，再执行：
+
+```javascript
+window.parent.postMessage({event: "getApiDetail", data: {}}, "*")
+```
+
+收到 `event === "getApiDetail"` 的响应后，会将响应的 `data` 以格式化 JSON 打印到
+控制台，同时写入 `reports/browser-ai-test.log`。监听器在成功或 timeout 后都会移除。
+如果生产环境已知父页面 origin，建议把 `target_origin: "*"` 改成明确 origin。
+
 推荐使用模块方式执行，它不依赖 Windows 是否把 console script 加入当前 PATH：
 
 ```powershell

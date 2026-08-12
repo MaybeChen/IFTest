@@ -130,3 +130,9 @@ logging:
   file: "reports/browser-ai-test.log"
 report:
   html_directory: "reports"
+api_detail:
+  request_event: "getApiDetail"
+  response_event: "getApiDetail"
+  request_data: {}
+  target_origin: "*"
+  timeout_ms: 30000
