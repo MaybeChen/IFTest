@@ -36,13 +36,20 @@ class TestRunner:
                 )
                 await executor.initialize()
                 for index, case in enumerate(cases, 1):
+                    logger.info("[%s/%s] Starting case %s", index, len(cases), case.id)
                     result = await self._run_case(run_id, case, executor, session)
                     collector.add(result)
                     self.database.save_case(result)
                     render_case(result, index, len(cases))
+                    logger.info(
+                        "[%s/%s] Case %s finished; passed=%s",
+                        index, len(cases), case.id, result.passed,
+                    )
                     if not result.passed and not self.config.runner.continue_on_failure:
+                        logger.warning("Stopping after %s because continue_on_failure=false", case.id)
                         break
                     if index < len(cases) and self.config.runner.case_interval_seconds:
+                        logger.info("Waiting %.1fs before next Case", self.config.runner.case_interval_seconds)
                         await asyncio.sleep(self.config.runner.case_interval_seconds)
         finally:
             passed = sum(item.passed for item in collector.results)
