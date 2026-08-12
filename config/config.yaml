@@ -1,0 +1,132 @@
+browser:
+  cdp_url: "http://127.0.0.1:9222"
+  headless: false
+  cdp_timeout_seconds: 10
+  bypass_proxy_for_loopback: true
+system:
+  url: "http://7.212.32.169:8081/index.html#/login"
+  iframe_hint: "business iframe"
+  iframe_selector: "#methodCopilot"
+upload:
+  directory: "data/uploads"
+  input_selector: ".el-upload input[type='file'], input.el-upload, input[type='file']"
+  # 直接设置隐藏 input，不打开会阻塞后续 Case 的系统文件选择窗口。
+  trigger_selector: null
+  target: iframe
+  timeout_ms: 10000
+workflow:
+  login:
+    enabled: true
+    detect_selector: "input[placeholder='w3账号']"
+    username_env: USER_NAME
+    password_env: USER_PASSWORD
+    username_selector: "input[placeholder='w3账号']"
+    # Vue/Element Plus 生成的 el-id 会变化，使用稳定的 type=password。
+    password_selector: "input[type='password']"
+    submit_selector: "button:has-text('登录')"
+  # 在这里编辑固定 Playwright 初始化步骤：点击 testcc、新增 auto_api、打开 AI 助手等。
+  # 每条步骤支持 action/target/selector/value/timeout_ms；完整示例见 README。
+  setup_steps:
+    - action: click
+      target: main
+      locator_type: text
+      selector: "Auto_EVA存量BES"
+      exact: false
+      timeout_ms: 30000
+    # 产品详情是异步渲染的，先等待“新增”按钮可见，再点击。
+    - action: wait_visible
+      target: main
+      locator_type: role
+      selector: button
+      name: "新增"
+      exact: false
+      nth: 0
+      timeout_ms: 30000
+    - action: click
+      target: main
+      locator_type: role
+      selector: button
+      name: "新增"
+      exact: false
+      nth: 0
+      timeout_ms: 30000
+    - action: fill
+      target: main
+      selector: ".el-form-item:has-text('API名称') input"
+      value: "auto_api"
+    - action: click
+      target: main
+      locator_type: role
+      selector: button
+      name: "确认"
+      exact: true
+    - action: click
+      target: main
+      selector: ".ai-toggle-btn"
+  before_case_steps: []
+  # Recorder 在上传后先关闭上传层、聚焦输入区，再填充 iframe 内第 4 个 span。
+  after_upload_steps:
+    - action: click
+      target: iframe
+      selector: ".cb-chatbot-content"
+    - action: click
+      target: iframe
+      selector: ".wise-input"
+  question_selector: "span"
+  question_nth: 3
+  send_selector: ".wise-input-send"
+  answer_selector: "[data-testid='answer']"
+  case_ready_selector: ".wise-input"
+  target: iframe
+  # 每条 Case 结束后按预期刷新整个页面。
+  refresh_action: reload
+  refresh_selector: null
+  # 整页刷新后重新打开 AI 助手，再等待输入区恢复。
+  after_refresh_steps:
+    - action: wait_visible
+      target: main
+      selector: ".ai-toggle-btn"
+      timeout_ms: 30000
+    - action: click
+      target: main
+      selector: ".ai-toggle-btn"
+      timeout_ms: 30000
+    - action: wait_visible
+      target: iframe
+      selector: ".wise-input"
+      timeout_ms: 30000
+  ui_timeout_ms: 10000
+  # UI 操作之间暂停 1 秒；不参与问答完成判断。
+  step_interval_seconds: 1
+stream:
+  protocol: "sse"
+  url_keywords:
+    - "/api/chat/stream"
+    - "/api/generate"
+  # 最长等待 2 小时；收到 CDP done marker 后会立即返回，不会固定等待 7200 秒。
+  timeout_seconds: 7200
+  done_markers:
+    # 真实 SSE 以空 data 的 `event:onComplete` 结束。CDP 将 eventName/data 分开，
+    # StreamMonitor 会组合后匹配这个标识。
+    - "event:onComplete"
+  # 原生 EventSource 的结束事件名；优先按 CDP eventName 精确匹配。
+  done_event_names:
+    - "onComplete"
+  # 当前 chat 前端在消费完 SSE 后会主动取消 fetch，CDP 表现为 net::ERR_ABORTED。
+  aborted_sse_is_complete: true
+  # 当前页面使用原生 EventSource，不使用 fetch/loadingFinished 作为完成条件。
+  sse_loading_finished_is_complete: false
+database:
+  path: "data/results.db"
+runner:
+  continue_on_failure: true
+  # 收到 SSE event:onComplete 即 Case PASS；答案校验仍记录在 answer_ok/report 中。
+  pass_condition: network_complete
+  case_interval_seconds: 1
+  retry_count: 0
+logging:
+  level: INFO
+  # SSE/CDP 和 Playwright 运行日志同时写入该文件。
+  file: "reports/browser-ai-test.log"
+report:
+  html_directory: "reports"
