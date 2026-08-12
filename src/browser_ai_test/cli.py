@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from pathlib import Path
 from typing import Annotated
@@ -22,6 +23,7 @@ from browser_ai_test.browser.api_detail import (
     fetch_api_details,
     find_page_with_iframe,
 )
+from browser_ai_test.browser.api_detail_transformer import transform_api_details
 from browser_ai_test.browser.session import SharedBrowserSession
 from browser_ai_test.runner import TestRunner
 
@@ -123,8 +125,13 @@ def debug_api_detail(config: ConfigOption = Path("config/config.yaml")) -> None:
     except ApiDetailError as exc:
         console.print(f"[red]API Detail FAIL[/]: {exc}")
         raise typer.Exit(code=1) from exc
-    console.rule("API Details")
-    console.print(JSON.from_data(details))
+    transformed = transform_api_details(details)
+    console.rule("Transformed API Methods")
+    console.print(JSON.from_data(transformed))
+    logging.getLogger(__name__).info(
+        "Transformed API methods: %s",
+        json.dumps(transformed, ensure_ascii=False),
+    )
 
 
 @app.command()

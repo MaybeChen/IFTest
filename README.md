@@ -603,6 +603,26 @@ window.parent.postMessage({event: "getApiDetail", data: {}}, "*")
 控制台，同时写入 `reports/browser-ai-test.log`。监听器在成功或 timeout 后都会移除。
 如果生产环境已知父页面 origin，建议把 `target_origin: "*"` 改成明确 origin。
 
+获取后会将 `tableData` 转换成纯方法数组：方法名来自 `operationName`；request/response
+从 `elements` 展开为 `{path, type, lenth, required}`。复杂类型会通过 `complexTypes` 的
+`type/key/name` 递归展开，路径从 `$` 开始以 `.` 连接；`RequestHeader`、
+`ResponseHeader`、`ResultHeader`、`Page` 会被忽略。若消息根节点的 `elements` 为空，
+还会尝试通过 `type/operationKey/key` 查找对应复杂类型。输出示例：
+
+```json
+[
+  {
+    "name": "accessToken",
+    "request": [
+      {"path": "$.client_id", "type": "string", "lenth": null, "required": true}
+    ],
+    "response": [
+      {"path": "$.access_token", "type": "string", "lenth": null, "required": true}
+    ]
+  }
+]
+```
+
 推荐调试顺序：
 
 ```text
