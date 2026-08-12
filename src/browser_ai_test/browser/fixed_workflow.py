@@ -156,6 +156,8 @@ class FixedPlaywrightExecutor:
         if self.workflow.refresh_action == "reload":
             logger.info("Case cleanup: reloading page")
             await self.page.reload(wait_until="domcontentloaded")
+        elif self.workflow.refresh_action == "iframe_reload":
+            await self._reload_iframe()
         else:
             if not self.workflow.refresh_selector:
                 raise FixedWorkflowError(
@@ -178,6 +180,31 @@ class FixedPlaywrightExecutor:
             )
         await self._wait_case_ready("next")
         logger.info("Case cleanup: refresh completed; next Case may start")
+
+    async def _reload_iframe(self) -> None:
+        """Reload only the QA iframe without losing the selected product/API."""
+        selector = self.system.iframe_selector
+        if not selector:
+            raise FixedWorkflowError(
+                "workflow.refresh_action=iframe_reload 时必须配置 system.iframe_selector"
+            )
+        logger.info("Case cleanup: reloading iframe selector=%r", selector)
+        try:
+            handle = await self.page.locator(selector).element_handle(
+                timeout=self.workflow.ui_timeout_ms
+            )
+            if handle is None:
+                raise FixedWorkflowError(f"未找到 iframe: {selector!r}")
+            frame = await handle.content_frame()
+            if frame is None:
+                raise FixedWorkflowError(f"元素不是可用 iframe: {selector!r}")
+            await frame.reload(
+                wait_until="domcontentloaded", timeout=self.workflow.ui_timeout_ms
+            )
+        except FixedWorkflowError:
+            raise
+        except Exception as exc:
+            raise FixedWorkflowError(f"刷新 iframe {selector!r} 失败: {exc}") from exc
 
     async def _wait_case_ready(self, case_id: str) -> None:
         selector = self.workflow.case_ready_selector

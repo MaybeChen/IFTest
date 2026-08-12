@@ -192,7 +192,7 @@ workflow:
   ui_timeout_ms: 15000
   step_interval_seconds: 1
 
-  # reload / click / none
+  # reload / iframe_reload / click / none
   refresh_action: click
   refresh_selector: "button[data-testid='new-chat']"
 
@@ -211,6 +211,8 @@ stream:
   timeout_seconds: 7200
   done_markers:
     - "event:onComplete"
+  done_event_names:
+    - "onComplete"
 
 database:
   path: "data/results.db"
@@ -416,6 +418,19 @@ workflow:
   refresh_selector: "button[data-testid='new-chat']"
 ```
 
+当前 IF 页面更推荐只刷新问答 iframe，这样不会丢失外层已经选择的产品和 `auto_api`：
+
+```yaml
+workflow:
+  refresh_action: iframe_reload
+  case_ready_selector: ".wise-input"
+  after_refresh_steps:
+    - action: wait_visible
+      target: iframe
+      selector: ".wise-input"
+      timeout_ms: 30000
+```
+
 整页刷新：
 
 ```yaml
@@ -423,7 +438,7 @@ workflow:
   refresh_action: reload
 ```
 
-如果 reload 会返回产品列表，请使用 `click`，否则后续 Case 将离开问答页。
+如果 reload 会返回产品列表，请使用 `iframe_reload` 或 `click`，否则后续 Case 将离开问答页。
 
 ## 网络完成判定
 
@@ -457,6 +472,22 @@ stream:
 兼容模式只会在响应 MIME 或 CDP 事件已经确认请求是 SSE 后，将
 `net::ERR_ABORTED` 作为完成；其他网络错误仍然失败。它也兼容 Chrome 不产生
 `eventSourceMessageReceived` 的 fetch-streaming 实现。普通系统应保持默认值 `false`。
+
+如果某些环境使用 fetch-streaming，可能在完整响应体结束时只产生
+`Network.loadingFinished`，而不会产生 `eventSourceMessageReceived`，这时可以配置：
+
+```yaml
+stream:
+  sse_loading_finished_is_complete: true
+```
+
+此开关只对 MIME 已确认为 `text/event-stream` 的目标请求生效；收到
+`Network.loadingFinished` 后会立即退出等待，随后执行整页刷新。
+
+当前系统明确使用原生 EventSource，因此保持该开关为 `false`，并使用
+`done_event_names: ["onComplete"]` 对 CDP 的 `eventName` 做精确匹配。运行日志会输出每条
+`SSE event received`；看到 `SSE business completion event matched` 后，才表示
+`wait_done()` 已经返回并将开始整页刷新。
 
 当前默认 `runner.pass_condition: network_complete`：只要目标请求收到完整的
 `event:onComplete`，Case 就记为 PASS。Keyword/Regex 校验仍会执行并记录到
@@ -586,23 +617,16 @@ runner:
   continue_on_failure: true
 ```
 
-使用 `workflow.refresh_action: reload` 时，刷新会收起 AI 助手。需要通过
-`after_refresh_steps` 重新打开助手，并用 `case_ready_selector` 等待 iframe 输入区恢复；
+此前默认使用整页 `reload`，测试环境刷新后可能丢失产品/API 选择，或者 AI 面板状态与
+预期相反，导致再次点击 `.ai-toggle-btn` 反而关闭面板。当前配置改用
+`iframe_reload`，只刷新 `#methodCopilot`，并用 `case_ready_selector` 等待输入区恢复；
 日志出现 `Case cleanup: refresh completed; next Case may start` 后才会开始下一条。
 
 ```yaml
 workflow:
-  refresh_action: reload
+  refresh_action: iframe_reload
   case_ready_selector: ".wise-input"
   after_refresh_steps:
-    - action: wait_visible
-      target: main
-      selector: ".ai-toggle-btn"
-      timeout_ms: 30000
-    - action: click
-      target: main
-      selector: ".ai-toggle-btn"
-      timeout_ms: 30000
     - action: wait_visible
       target: iframe
       selector: ".wise-input"

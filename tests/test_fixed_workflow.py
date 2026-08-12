@@ -26,6 +26,10 @@ class FakeLocator:
     async def wait_for(self, **kwargs):
         self.calls.append(("wait_for", self.selector, kwargs))
 
+    async def element_handle(self, **kwargs):
+        self.calls.append(("element_handle", self.selector, kwargs))
+        return FakeElementHandle(self.calls, self.selector)
+
     def nth(self, index):
         return FakeLocator(f"{self.selector}:nth({index})", self.calls, self.visible)
 
@@ -33,6 +37,16 @@ class FakeLocator:
 class FakeRoot:
     def __init__(self, calls, prefix): self.calls = calls; self.prefix = prefix
     def locator(self, selector): return FakeLocator(f"{self.prefix}:{selector}", self.calls)
+
+
+class FakeFrame:
+    def __init__(self, calls, selector): self.calls = calls; self.selector = selector
+    async def reload(self, **kwargs): self.calls.append(("frame_reload", self.selector, kwargs))
+
+
+class FakeElementHandle:
+    def __init__(self, calls, selector): self.calls = calls; self.selector = selector
+    async def content_frame(self): return FakeFrame(self.calls, self.selector)
 
 
 class FakePage(FakeRoot):
@@ -91,6 +105,29 @@ def test_fixed_workflow_does_not_require_login_when_hidden(monkeypatch):
     )
     asyncio.run(executor.initialize())
     assert not any(call[0] == "fill" for call in page.calls)
+
+
+def test_iframe_reload_preserves_outer_page_and_prepares_next_case():
+    page = FakePage()
+    workflow = WorkflowConfig(
+        question_selector="#question", send_selector="#send", answer_selector="#answer",
+        target="iframe", refresh_action="iframe_reload", case_ready_selector="#question",
+        step_interval_seconds=0,
+    )
+    executor = FixedPlaywrightExecutor(
+        page, FakeMonitor(), SystemConfig(url="https://test", iframe_selector="#frame"),
+        UploadConfig(), workflow, 30,
+    )
+    case = CaseModel(
+        id="1", name="qa", question="问题",
+        expected=ExpectedConfig(type="keyword", values=["答案"]),
+    )
+
+    asyncio.run(executor.execute(case))
+
+    assert not any(call[0] == "reload" for call in page.calls)
+    assert any(call[0:2] == ("frame_reload", "main:#frame") for call in page.calls)
+    assert page.calls[-1][0:2] == ("wait_for", "frame(#frame):#question")
 
 
 def test_fixed_workflow_runs_upload_focus_steps_and_question_nth(monkeypatch):
