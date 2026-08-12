@@ -70,6 +70,7 @@ class StreamConfig(BaseModel):
     # upper bound: StreamMonitor returns immediately when CDP observes done.
     timeout_seconds: float = Field(default=7_200, gt=0)
     done_markers: list[str] = Field(min_length=1)
+    done_event_names: list[str] = Field(default_factory=list)
     # Some fetch-based SSE clients abort the transport immediately after the
     # final event.  Enable only for systems where this is the documented close.
     aborted_sse_is_complete: bool = False

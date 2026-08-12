@@ -25,11 +25,13 @@ class StreamMonitor:
         url_keywords: list[str],
         done_markers: list[str],
         *,
+        done_event_names: list[str] | None = None,
         aborted_sse_is_complete: bool = False,
         sse_loading_finished_is_complete: bool = False,
     ) -> None:
         self.url_keywords = tuple(url_keywords)
         self.done_markers = tuple(done_markers)
+        self.done_event_names = frozenset(done_event_names or ())
         self.aborted_sse_is_complete = aborted_sse_is_complete
         self.sse_loading_finished_is_complete = sse_loading_finished_is_complete
         self.done_event = asyncio.Event()
@@ -107,12 +109,39 @@ class StreamMonitor:
             self.detected_protocol = "http"
 
     def on_event_source_message_received(self, event: dict[str, Any]) -> None:
+        event_name = str(event.get("eventName", ""))
+        request_id = str(event.get("requestId", ""))
+        logger.info(
+            "SSE event received: request_id=%s event_name=%r data_length=%d tracked=%s armed=%s",
+            request_id,
+            event_name,
+            len(str(event.get("data", ""))),
+            request_id in self.request_ids,
+            self.armed,
+        )
+        if (
+            self.armed
+            and request_id in self.request_ids
+            and self._accepts("sse")
+            and event_name in self.done_event_names
+        ):
+            self.detected_protocol = "sse"
+            if self.first_message_ts is None:
+                self.first_message_ts = float(event.get("timestamp", 0))
+            self.done_ts = float(event.get("timestamp", 0))
+            self.done_event.set()
+            logger.info(
+                "SSE business completion event matched: request_id=%s event_name=%r",
+                request_id,
+                event_name,
+            )
+            return
         self._payload(
-            str(event.get("requestId", "")),
+            request_id,
             float(event.get("timestamp", 0)),
             str(event.get("data", "")),
             "sse",
-            str(event.get("eventName", "")),
+            event_name,
         )
 
     def on_websocket_created(self, event: dict[str, Any]) -> None:

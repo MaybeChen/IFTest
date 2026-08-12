@@ -211,6 +211,8 @@ stream:
   timeout_seconds: 7200
   done_markers:
     - "event:onComplete"
+  done_event_names:
+    - "onComplete"
 
 database:
   path: "data/results.db"
@@ -471,9 +473,8 @@ stream:
 `net::ERR_ABORTED` 作为完成；其他网络错误仍然失败。它也兼容 Chrome 不产生
 `eventSourceMessageReceived` 的 fetch-streaming 实现。普通系统应保持默认值 `false`。
 
-测试环境的 fetch-streaming 还可能在完整响应体结束时只产生
-`Network.loadingFinished`，而不会产生 `eventSourceMessageReceived`。这正是页面已经显示
-完整结果、但程序仍停在 `wait_done()`、迟迟不刷新并执行第二条 Case 的原因。已配置：
+如果某些环境使用 fetch-streaming，可能在完整响应体结束时只产生
+`Network.loadingFinished`，而不会产生 `eventSourceMessageReceived`，这时可以配置：
 
 ```yaml
 stream:
@@ -482,6 +483,11 @@ stream:
 
 此开关只对 MIME 已确认为 `text/event-stream` 的目标请求生效；收到
 `Network.loadingFinished` 后会立即退出等待，随后执行整页刷新。
+
+当前系统明确使用原生 EventSource，因此保持该开关为 `false`，并使用
+`done_event_names: ["onComplete"]` 对 CDP 的 `eventName` 做精确匹配。运行日志会输出每条
+`SSE event received`；看到 `SSE business completion event matched` 后，才表示
+`wait_done()` 已经返回并将开始整页刷新。
 
 当前默认 `runner.pass_condition: network_complete`：只要目标请求收到完整的
 `event:onComplete`，Case 就记为 PASS。Keyword/Regex 校验仍会执行并记录到

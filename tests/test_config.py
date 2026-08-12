@@ -17,3 +17,4 @@ def test_stream_timeout_defaults_to_two_hours() -> None:
     assert config.runner.pass_condition == "network_complete"
     assert not config.stream.aborted_sse_is_complete
     assert not config.stream.sse_loading_finished_is_complete
+    assert config.stream.done_event_names == []
