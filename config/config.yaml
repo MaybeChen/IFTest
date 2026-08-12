@@ -100,8 +100,7 @@ workflow:
 stream:
   protocol: "sse"
   url_keywords:
-    - "/api/chat/stream"
-    - "/api/generate"
+    - "/api/agent/chat"
   # 最长等待 2 小时；收到 CDP done marker 后会立即返回，不会固定等待 7200 秒。
   timeout_seconds: 7200
   done_markers:
