@@ -101,7 +101,8 @@ stream:
   protocol: "sse"
   url_keywords:
     - "/api/agent/chat"
-  timeout_seconds: 120
+  # 最长等待 2 小时；收到 CDP done marker 后会立即返回，不会固定等待 7200 秒。
+  timeout_seconds: 7200
   done_markers:
     - "[DONE]"
     - '"type":"done"'

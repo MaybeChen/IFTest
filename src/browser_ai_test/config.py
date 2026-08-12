@@ -66,7 +66,9 @@ class ReportConfig(BaseModel):
 class StreamConfig(BaseModel):
     protocol: Protocol = "auto"
     url_keywords: list[str] = Field(min_length=1)
-    timeout_seconds: float = Field(default=120, gt=0)
+    # AI document generation can legitimately run for hours.  This is only an
+    # upper bound: StreamMonitor returns immediately when CDP observes done.
+    timeout_seconds: float = Field(default=7_200, gt=0)
     done_markers: list[str] = Field(min_length=1)
 
 

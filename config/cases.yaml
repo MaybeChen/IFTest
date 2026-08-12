@@ -20,7 +20,7 @@ cases:
       match_mode: all
     stream:
       protocol: sse
-    timeout_seconds: 120000
+    timeout_seconds: 7200
   - id: QA_002
     name: Zain Interface Specification Document(Kofax)_V0.3 全量生成
     question: "根据文档生成接口"
@@ -30,4 +30,4 @@ cases:
       values: ["(^|[^0-9])2([^0-9]|$)"]
     stream:
       protocol: sse
-    timeout_seconds: 120000
+    timeout_seconds: 7200
