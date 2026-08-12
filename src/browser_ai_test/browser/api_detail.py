@@ -13,6 +13,25 @@ class ApiDetailError(RuntimeError):
     """The host page did not return method details over postMessage."""
 
 
+async def find_page_with_iframe(pages: list[Any], iframe_selector: str) -> Any:
+    """Find the most recently opened Chrome page containing the target iframe."""
+    for page in reversed(pages):
+        try:
+            if await page.locator(iframe_selector).count():
+                logger.info(
+                    "API detail target page selected: url=%s iframe=%s",
+                    getattr(page, "url", "<unknown>"),
+                    iframe_selector,
+                )
+                return page
+        except Exception:
+            logger.debug("Skipping unavailable Chrome page", exc_info=True)
+    raise ApiDetailError(
+        f"当前 Chrome 标签页中未找到 iframe: {iframe_selector!r}；"
+        "请先手动打开目标界面"
+    )
+
+
 async def fetch_api_details(
     page: Any,
     iframe_selector: str,

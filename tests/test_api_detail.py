@@ -2,7 +2,11 @@ import asyncio
 
 import pytest
 
-from browser_ai_test.browser.api_detail import ApiDetailError, fetch_api_details
+from browser_ai_test.browser.api_detail import (
+    ApiDetailError,
+    fetch_api_details,
+    find_page_with_iframe,
+)
 from browser_ai_test.config import ApiDetailConfig
 
 
@@ -33,6 +37,16 @@ class FakePage:
     def frame_locator(self, selector):
         self.selector = selector
         return FakeFrame(self.html)
+
+
+class SearchLocator:
+    def __init__(self, count): self.value = count
+    async def count(self): return self.value
+
+
+class SearchPage:
+    def __init__(self, url, count): self.url = url; self.value = count
+    def locator(self, selector): return SearchLocator(self.value)
 
 
 def test_fetch_api_details_posts_request_and_returns_response_data():
@@ -66,3 +80,16 @@ def test_fetch_api_details_reports_postmessage_timeout():
 
     with pytest.raises(ApiDetailError, match="getApiDetail"):
         asyncio.run(fetch_api_details(page, "#methodCopilot", ApiDetailConfig()))
+
+
+def test_find_page_with_iframe_prefers_most_recent_matching_page():
+    pages = [SearchPage("https://old", 1), SearchPage("https://current", 1)]
+
+    selected = asyncio.run(find_page_with_iframe(pages, "#methodCopilot"))
+
+    assert selected.url == "https://current"
+
+
+def test_find_page_with_iframe_requires_manually_prepared_page():
+    with pytest.raises(ApiDetailError, match="请先手动打开目标界面"):
+        asyncio.run(find_page_with_iframe([SearchPage("https://other", 0)], "#methodCopilot"))

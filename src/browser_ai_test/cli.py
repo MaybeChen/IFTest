@@ -17,8 +17,11 @@ from browser_ai_test.browser.cdp import (
     fetch_cdp_version,
 )
 from browser_ai_test.metrics.database import ResultsDatabase
-from browser_ai_test.browser.api_detail import ApiDetailError, fetch_api_details
-from browser_ai_test.browser.fixed_workflow import FixedPlaywrightExecutor
+from browser_ai_test.browser.api_detail import (
+    ApiDetailError,
+    fetch_api_details,
+    find_page_with_iframe,
+)
 from browser_ai_test.browser.session import SharedBrowserSession
 from browser_ai_test.runner import TestRunner
 
@@ -96,7 +99,7 @@ def run(
 
 @app.command("debug-api-detail")
 def debug_api_detail(config: ConfigOption = Path("config/config.yaml")) -> None:
-    """单步打开业务页面，通过 postMessage 获取并打印所有方法详情。"""
+    """从 Chrome 当前页面直接通过 postMessage 获取并打印所有方法详情。"""
     settings = load_config(config)
     _configure_logging(settings)
 
@@ -104,18 +107,14 @@ def debug_api_detail(config: ConfigOption = Path("config/config.yaml")) -> None:
         if not settings.system.iframe_selector:
             raise ApiDetailError("debug-api-detail 需要配置 system.iframe_selector")
         async with SharedBrowserSession(settings.browser, settings.stream) as session:
-            executor = FixedPlaywrightExecutor(
-                session.page,
-                session.monitor,
-                settings.system,
-                settings.upload,
-                settings.workflow,
-                settings.stream.timeout_seconds,
-            )
-            await executor.initialize()
-            return await fetch_api_details(
-                session.page,
+            # Deliberately do not navigate, log in, or run setup_steps.  This
+            # command operates on the page the user prepared manually in Chrome.
+            page = await find_page_with_iframe(
+                session.context.pages,
                 settings.system.iframe_selector,
+            )
+            return await fetch_api_details(
+                page, settings.system.iframe_selector,
                 settings.api_detail,
             )
 

@@ -590,7 +590,9 @@ python -m browser_ai_test.cli debug-api-detail
 browser-ai-test debug-api-detail
 ```
 
-命令会执行登录和 `setup_steps`，打开 `#methodCopilot`，然后在 iframe 内先注册
+该命令**不会**访问 `system.url`，也不会执行登录、`setup_steps`、上传、问答或刷新。
+请先在通过 9222 端口启动的同一个 Chrome 中手动进入目标界面，并确保
+`#methodCopilot` 已经存在；命令将直接使用 Chrome 当前 Page，在 iframe 内先注册
 `message` 监听，再执行：
 
 ```javascript
@@ -600,6 +602,16 @@ window.parent.postMessage({event: "getApiDetail", data: {}}, "*")
 收到 `event === "getApiDetail"` 的响应后，会将响应的 `data` 以格式化 JSON 打印到
 控制台，同时写入 `reports/browser-ai-test.log`。监听器在成功或 timeout 后都会移除。
 如果生产环境已知父页面 origin，建议把 `target_origin: "*"` 改成明确 origin。
+
+推荐调试顺序：
+
+```text
+1. 手动在 Chrome 中登录
+2. 手动进入产品/API 页面
+3. 手动打开 AI 助手，确认 #methodCopilot 已显示
+4. 保持该标签页为当前标签页
+5. 执行 browser-ai-test debug-api-detail
+```
 
 推荐使用模块方式执行，它不依赖 Windows 是否把 console script 加入当前 PATH：
 
