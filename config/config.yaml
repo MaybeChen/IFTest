@@ -4,7 +4,7 @@ browser:
   cdp_timeout_seconds: 10
   bypass_proxy_for_loopback: true
 system:
-  url: "http://7.212.32.169:8081/index.html#/login"
+  url: "http://10.136.122.46:9999/#/login"
   iframe_hint: "business iframe"
   iframe_selector: "#methodCopilot"
 upload:
