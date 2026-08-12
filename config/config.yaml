@@ -78,11 +78,19 @@ workflow:
   answer_selector: "[data-testid='answer']"
   case_ready_selector: ".wise-input"
   target: iframe
-  # 只刷新问答 iframe，保留外层已选择的产品和 auto_api。
-  refresh_action: iframe_reload
+  # 每条 Case 结束后按预期刷新整个页面。
+  refresh_action: reload
   refresh_selector: null
-  # iframe reload 后只需等待问答输入区恢复，不要再次点击 AI 按钮把面板关掉。
+  # 整页刷新后重新打开 AI 助手，再等待输入区恢复。
   after_refresh_steps:
+    - action: wait_visible
+      target: main
+      selector: ".ai-toggle-btn"
+      timeout_ms: 30000
+    - action: click
+      target: main
+      selector: ".ai-toggle-btn"
+      timeout_ms: 30000
     - action: wait_visible
       target: iframe
       selector: ".wise-input"
@@ -103,6 +111,8 @@ stream:
     - "event:onComplete"
   # 当前 chat 前端在消费完 SSE 后会主动取消 fetch，CDP 表现为 net::ERR_ABORTED。
   aborted_sse_is_complete: true
+  # 测试环境使用 fetch 读取 SSE；响应体结束时 CDP 发送 loadingFinished。
+  sse_loading_finished_is_complete: true
 database:
   path: "data/results.db"
 runner:

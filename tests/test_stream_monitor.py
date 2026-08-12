@@ -103,6 +103,37 @@ def test_configured_fetch_sse_abort_completes_without_eventsource_messages():
     assert result.stream_total_ms == pytest.approx(2000)
 
 
+def test_configured_fetch_sse_loading_finished_completes_stream():
+    item = StreamMonitor(
+        ["/api/stream"],
+        ["event:onComplete"],
+        sse_loading_finished_is_complete=True,
+    )
+    item.arm("sse")
+    request(item, kind="Fetch")
+    item.on_response_received(
+        {"requestId": "1", "response": {"mimeType": "text/event-stream"}}
+    )
+    item.on_loading_finished({"requestId": "1", "timestamp": 15})
+
+    result = asyncio.run(item.wait_done(0.1))
+    assert result.completed
+    assert result.protocol == "sse"
+    assert result.stream_total_ms == pytest.approx(5000)
+
+
+def test_sse_loading_finished_does_not_complete_without_opt_in():
+    item = StreamMonitor(["/api/stream"], ["event:onComplete"])
+    item.arm("sse")
+    request(item, kind="Fetch")
+    item.on_response_received(
+        {"requestId": "1", "response": {"mimeType": "text/event-stream"}}
+    )
+    item.on_loading_finished({"requestId": "1", "timestamp": 15})
+
+    assert not item.done_event.is_set()
+
+
 def test_sse_abort_is_error_without_explicit_compatibility_mode():
     item = StreamMonitor(["/api/stream"], ["event:onComplete"])
     item.arm("sse")

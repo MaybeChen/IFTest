@@ -73,6 +73,9 @@ class StreamConfig(BaseModel):
     # Some fetch-based SSE clients abort the transport immediately after the
     # final event.  Enable only for systems where this is the documented close.
     aborted_sse_is_complete: bool = False
+    # fetch-based SSE does not always emit eventSourceMessageReceived.  In that
+    # case Network.loadingFinished is the precise end of the response body.
+    sse_loading_finished_is_complete: bool = False
 
 
 class DatabaseConfig(BaseModel):

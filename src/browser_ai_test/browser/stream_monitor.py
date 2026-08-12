@@ -26,10 +26,12 @@ class StreamMonitor:
         done_markers: list[str],
         *,
         aborted_sse_is_complete: bool = False,
+        sse_loading_finished_is_complete: bool = False,
     ) -> None:
         self.url_keywords = tuple(url_keywords)
         self.done_markers = tuple(done_markers)
         self.aborted_sse_is_complete = aborted_sse_is_complete
+        self.sse_loading_finished_is_complete = sse_loading_finished_is_complete
         self.done_event = asyncio.Event()
         self.reset()
 
@@ -128,7 +130,21 @@ class StreamMonitor:
 
     def on_loading_finished(self, event: dict[str, Any]) -> None:
         request_id = str(event.get("requestId", ""))
-        if not self.armed or request_id not in self.request_ids or not self._accepts("http"):
+        if not self.armed or request_id not in self.request_ids:
+            return
+        if (
+            self.detected_protocol == "sse"
+            and self._accepts("sse")
+            and self.sse_loading_finished_is_complete
+        ):
+            self.done_ts = float(event["timestamp"])
+            self.done_event.set()
+            logger.info(
+                "Treating Network.loadingFinished as completed SSE request: %s",
+                request_id,
+            )
+            return
+        if not self._accepts("http"):
             return
         if self.target_protocol == "auto" and self.detected_protocol in ("sse", "websocket"):
             return
