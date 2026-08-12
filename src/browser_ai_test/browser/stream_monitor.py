@@ -47,6 +47,7 @@ class StreamMonitor:
         self.first_message_ts: float | None = None
         self.done_ts: float | None = None
         self.network_error: str | None = None
+        self.candidate_urls: dict[str, str] = {}
 
     def arm(self, protocol: Protocol = "auto") -> str:
         self.reset()
@@ -93,11 +94,19 @@ class StreamMonitor:
             return
         request = event.get("request", {})
         url = str(request.get("url", ""))
-        if not self._url_matches(url):
-            return
+        request_id = str(event.get("requestId", ""))
         resource_type = str(event.get("type", ""))
+        self.candidate_urls[request_id] = url
+        if not self._url_matches(url):
+            if resource_type == "EventSource":
+                logger.warning(
+                    "EventSource request ignored because URL does not match stream.url_keywords: "
+                    "request_id=%s url=%s configured_keywords=%s",
+                    request_id, url, list(self.url_keywords),
+                )
+            return
         protocol: Protocol | None = "sse" if resource_type == "EventSource" else None
-        self._track(str(event["requestId"]), float(event["timestamp"]), protocol)
+        self._track(request_id, float(event["timestamp"]), protocol)
         logger.info(
             "Tracked stream request: request_id=%s type=%s url=%s",
             event["requestId"], resource_type or "-", url,
@@ -105,9 +114,17 @@ class StreamMonitor:
 
     def on_response_received(self, event: dict[str, Any]) -> None:
         request_id = str(event.get("requestId", ""))
-        if request_id not in self.request_ids:
-            return
         mime = str(event.get("response", {}).get("mimeType", "")).lower()
+        if request_id not in self.request_ids:
+            if self.armed and "event-stream" in mime:
+                logger.warning(
+                    "SSE response ignored because URL does not match stream.url_keywords: "
+                    "request_id=%s url=%s configured_keywords=%s",
+                    request_id,
+                    self.candidate_urls.get(request_id, "<unknown>"),
+                    list(self.url_keywords),
+                )
+            return
         if "event-stream" in mime:
             self.detected_protocol = "sse"
         elif self.detected_protocol is None and self._accepts("http"):
@@ -212,6 +229,12 @@ class StreamMonitor:
             self.done_event.set()
 
     async def wait_done(self, timeout_seconds: float) -> StreamResult:
+        logger.info(
+            "Waiting for stream completion: timeout_seconds=%s protocol=%s "
+            "url_keywords=%s done_event_names=%s",
+            timeout_seconds, self.target_protocol, list(self.url_keywords),
+            sorted(self.done_event_names),
+        )
         try:
             await asyncio.wait_for(self.done_event.wait(), timeout_seconds)
         except TimeoutError as exc:

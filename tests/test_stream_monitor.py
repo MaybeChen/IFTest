@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 import pytest
 
@@ -21,6 +22,32 @@ def test_url_filter_and_done_marker():
     item.on_event_source_message_received({"requestId": "1", "timestamp": 11, "data": "[DONE]"})
     assert not item.done_event.is_set()
     assert not item.request_ids
+
+
+def test_unmatched_eventsource_logs_real_url_and_keywords(caplog):
+    item = StreamMonitor(["/expected/chat"], ["event:onComplete"])
+    item.arm("sse")
+
+    with caplog.at_level(logging.WARNING):
+        request(item, url="https://test/actual/chat/events", kind="EventSource")
+
+    assert "actual/chat/events" in caplog.text
+    assert "/expected/chat" in caplog.text
+    assert not item.request_ids
+
+
+def test_unmatched_fetch_sse_response_logs_real_url(caplog):
+    item = StreamMonitor(["/expected/chat"], ["event:onComplete"])
+    item.arm("sse")
+    request(item, url="https://test/actual/chat/events", kind="Fetch")
+
+    with caplog.at_level(logging.WARNING):
+        item.on_response_received(
+            {"requestId": "1", "response": {"mimeType": "text/event-stream"}}
+        )
+
+    assert "actual/chat/events" in caplog.text
+    assert "SSE response ignored" in caplog.text
 
 
 def test_sse_completed():

@@ -532,6 +532,19 @@ Tracked stream request: request_id=... type=EventSource url=...
 WORKFLOW_ERROR，所以在输入问题前就进入了 `finally` 刷新。现在该情况会继续使用已经在
 启动时挂载的 Page CDP Session，然后正常输入、发送并等待 SSE。
 
+如果日志停在 `clicking send`，但没有 `Tracked stream request`，程序实际卡在
+`wait_done()` 等待，并不是刷新卡住。此时查看以下诊断：
+
+```text
+EventSource request ignored because URL does not match stream.url_keywords
+# 或
+SSE response ignored because URL does not match stream.url_keywords
+```
+
+日志会打印真实 `url=` 和当前 `configured_keywords=`。请把真实 URL 中稳定且唯一的
+Chat 路径片段写入 `stream.url_keywords`；配置里的 `/api/chat/stream` 和
+`/api/generate` 只是示例，不保证匹配测试环境。
+
 当前默认 `runner.pass_condition: network_complete`：只要目标请求收到完整的
 `event:onComplete`，Case 就记为 PASS。Keyword/Regex 校验仍会执行并记录到
 `answer_ok` 和报告中，但不会改变最终 PASS。若需要恢复严格标准，可配置：
