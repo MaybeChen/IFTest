@@ -49,7 +49,7 @@ class WorkflowConfig(BaseModel):
     question_selector: str = "textarea"
     question_nth: int | None = None
     send_selector: str = "button[type='submit']"
-    answer_selector: str = "[data-testid='answer']"
+    answer_selector: str | None = "[data-testid='answer']"
     target: Literal["main", "iframe"] = "iframe"
     refresh_action: Literal["reload", "iframe_reload", "click", "none"] = "reload"
     refresh_selector: str | None = None

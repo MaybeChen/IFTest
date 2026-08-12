@@ -75,7 +75,8 @@ workflow:
   question_selector: "span"
   question_nth: 3
   send_selector: ".wise-input-send"
-  answer_selector: "[data-testid='answer']"
+  # 当前以整个请求完成作为 PASS，不等待尚未确认的答案 DOM selector。
+  answer_selector: null
   case_ready_selector: ".wise-input"
   target: iframe
   # 每条 Case 结束后按预期刷新整个页面。

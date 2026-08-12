@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
-from typing import Any
+from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import ProxyHandler, build_opener
+
+logger = logging.getLogger(__name__)
+
+
+class DetachableCDPSession(Protocol):
+    async def detach(self) -> None: ...
 
 
 class CDPConnectionError(ConnectionError):
@@ -15,6 +22,22 @@ class CDPConnectionError(ConnectionError):
 def frame_uses_parent_cdp_session(error: BaseException) -> bool:
     """Return whether Playwright says an iframe shares its parent's target."""
     return "part of the parent frame's session" in str(error)
+
+
+async def detach_cdp_session_safely(
+    session: DetachableCDPSession | None, *, label: str
+) -> None:
+    """Best-effort detach; navigation may already have destroyed the target."""
+    if session is None:
+        return
+    try:
+        await session.detach()
+    except Exception as exc:
+        message = str(exc)
+        if "Target page, context or browser has been closed" in message or "Target closed" in message:
+            logger.info("CDP session already closed; detach skipped: %s", label)
+            return
+        raise
 
 
 def ensure_loopback_no_proxy(cdp_url: str) -> None:

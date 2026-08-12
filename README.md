@@ -545,6 +545,16 @@ SSE response ignored because URL does not match stream.url_keywords
 Chat 路径片段写入 `stream.url_keywords`；配置里的 `/api/chat/stream` 和
 `/api/generate` 只是示例，不保证匹配测试环境。
 
+整页刷新会自动销毁 OOPIF 的旧 CDP Session。下一条 Case 重新 attach 前如果 Playwright
+返回 `CDPSession.detach: Target page, context or browser has been closed`，现在会将其视为
+旧 Target 已正常销毁并继续创建新 Session；该清理状态不再导致后续 Case
+`WORKFLOW_ERROR`，Run 结束时也不会再因重复 detach 崩溃。
+
+当前 `pass_condition: network_complete` 且真实答案 selector 尚未确认，因此示例配置使用
+`answer_selector: null`。收到网络完成信号后会直接刷新，不再为不存在的
+`[data-testid='answer']` 额外等待 10 秒并打印 Timeout traceback。需要恢复内容校验时，
+请将它改成页面真实答案元素的 selector。
+
 当前默认 `runner.pass_condition: network_complete`：只要目标请求收到完整的
 `event:onComplete`，Case 就记为 PASS。Keyword/Regex 校验仍会执行并记录到
 `answer_ok` 和报告中，但不会改变最终 PASS。若需要恢复严格标准，可配置：

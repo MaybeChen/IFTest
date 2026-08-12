@@ -1,4 +1,5 @@
 import pytest
+import asyncio
 
 from browser_ai_test.browser import cdp
 
@@ -80,3 +81,20 @@ def test_same_process_iframe_error_is_recognized_as_parent_session():
 
     assert cdp.frame_uses_parent_cdp_session(error)
     assert not cdp.frame_uses_parent_cdp_session(RuntimeError("Target closed"))
+
+
+def test_detach_ignores_session_destroyed_by_navigation():
+    class ClosedSession:
+        async def detach(self):
+            raise RuntimeError("Target page, context or browser has been closed")
+
+    asyncio.run(cdp.detach_cdp_session_safely(ClosedSession(), label="iframe"))
+
+
+def test_detach_does_not_hide_unexpected_errors():
+    class BrokenSession:
+        async def detach(self):
+            raise RuntimeError("protocol failure")
+
+    with pytest.raises(RuntimeError, match="protocol failure"):
+        asyncio.run(cdp.detach_cdp_session_safely(BrokenSession(), label="iframe"))
