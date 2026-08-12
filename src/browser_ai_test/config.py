@@ -78,6 +78,7 @@ class DatabaseConfig(BaseModel):
 
 class RunnerConfig(BaseModel):
     continue_on_failure: bool = True
+    pass_condition: Literal["network_complete", "all"] = "network_complete"
     case_interval_seconds: float = Field(default=1, ge=0)
     retry_count: int = Field(default=0, ge=0)
 

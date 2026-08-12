@@ -98,17 +98,29 @@ class TestRunner:
                 error_type = ErrorType.STREAM_TIMEOUT
             else:
                 error_type = ErrorType.WORKFLOW_ERROR
+        # Completion may already have been observed before reading the final DOM
+        # answer fails.  Derive network status after the whole workflow attempt,
+        # rather than only inside its success branch.
+        network_ok = (
+            session.monitor.done_event.is_set()
+            and not session.monitor.network_error
+            and session.monitor.done_ts is not None
+        )
         request_start = session.monitor.request_start_ts
         first = session.monitor.first_message_ts
         done = session.monitor.done_ts
         ttft = (first - request_start) * 1000 if first is not None and request_start is not None else None
         stream_total = (done - request_start) * 1000 if done is not None and request_start is not None else None
-        passed = ui_ok and network_ok and answer_ok
+        if self.config.runner.pass_condition == "network_complete":
+            passed = network_ok
+        else:
+            passed = ui_ok and network_ok and answer_ok
         return CaseResult(
             run_id=run_id, case_id=case.id, case_name=case.name, started_at=started,
             finished_at=datetime.now(timezone.utc), passed=passed, ui_ok=ui_ok,
             network_ok=network_ok, answer_ok=answer_ok, protocol=session.monitor.detected_protocol or protocol,
             ttft_ms=ttft, stream_total_ms=stream_total, workflow_total_seconds=duration,
             workflow_steps=steps, question=case.question, answer=answer,
-            error_type=None if passed else (error_type or ErrorType.UNKNOWN), error_detail=detail,
+            error_type=None if passed else (error_type or ErrorType.UNKNOWN),
+            error_detail=None if passed else detail,
         )

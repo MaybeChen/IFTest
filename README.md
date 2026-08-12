@@ -217,6 +217,8 @@ database:
 
 runner:
   continue_on_failure: true
+  # network_complete: 收到业务结束事件即 PASS；all: UI、网络、答案全部通过才 PASS。
+  pass_condition: network_complete
   case_interval_seconds: 1
 
 report:
@@ -443,6 +445,17 @@ data:
 `event:onPlan` 或 `state:success` 作为结束条件，因为它们在真正结束前也会出现。
 SSE 已发出 `onComplete` 后，即便 Chrome 随后对连接报告 `net::ERR_ABORTED`，该请求也按
 业务成功处理。
+
+当前默认 `runner.pass_condition: network_complete`：只要目标请求收到完整的
+`event:onComplete`，Case 就记为 PASS。Keyword/Regex 校验仍会执行并记录到
+`answer_ok` 和报告中，但不会改变最终 PASS。若需要恢复严格标准，可配置：
+
+```yaml
+runner:
+  pass_condition: all
+```
+
+此时必须同时满足 `ui_ok AND network_ok AND answer_ok`。
 
 ## 执行
 

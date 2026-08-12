@@ -73,7 +73,11 @@ def test_runner_continues_with_second_case_after_first_fails(monkeypatch, tmp_pa
     config = AppConfig.model_validate({
         "browser": {}, "system": {"url": "https://test", "iframe_selector": "#frame"},
         "stream": {"url_keywords": ["/stream"], "done_markers": ["[DONE]"]},
-        "runner": {"case_interval_seconds": 0, "continue_on_failure": True},
+        "runner": {
+            "case_interval_seconds": 0,
+            "continue_on_failure": True,
+            "pass_condition": "all",
+        },
         "report": {"html_directory": str(tmp_path)},
     })
     cases = [
@@ -90,3 +94,35 @@ def test_runner_continues_with_second_case_after_first_fails(monkeypatch, tmp_pa
     assert len(collector.results) == 2
     assert not collector.results[0].passed
     assert collector.results[1].passed
+
+
+def test_network_complete_is_pass_even_when_answer_validation_fails(monkeypatch, tmp_path):
+    import browser_ai_test.runner as runner_module
+
+    class WrongAnswerExecutor(FakeFixedExecutor):
+        async def execute(self, case):
+            return WorkflowRun(
+                UIExecutionResult(answer="不匹配", page_ok=True, reason="ok"), 4, 1.0
+            )
+
+    config = AppConfig.model_validate({
+        "browser": {}, "system": {"url": "https://test", "iframe_selector": "#frame"},
+        "stream": {"url_keywords": ["/stream"], "done_markers": ["event:onComplete"]},
+        "runner": {"case_interval_seconds": 0, "pass_condition": "network_complete"},
+        "report": {"html_directory": str(tmp_path)},
+    })
+    case = CaseModel(
+        id="C1", name="case", question="q",
+        expected=ExpectedConfig(type="keyword", values=["标准答案"]),
+    )
+    monkeypatch.setattr(runner_module, "FixedPlaywrightExecutor", WrongAnswerExecutor)
+    monkeypatch.setattr(runner_module, "render_case", lambda *args: None)
+    monkeypatch.setattr(runner_module, "render_summary", lambda *args: None)
+
+    _, collector = asyncio.run(Runner(config, FakeDatabase(), FakeSession).run([case]))
+
+    result = collector.results[0]
+    assert result.network_ok
+    assert not result.answer_ok
+    assert result.passed
+    assert result.error_type is None

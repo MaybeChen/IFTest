@@ -100,7 +100,8 @@ workflow:
 stream:
   protocol: "sse"
   url_keywords:
-    - "/api/agent/chat"
+    - "/api/chat/stream"
+    - "/api/generate"
   # 最长等待 2 小时；收到 CDP done marker 后会立即返回，不会固定等待 7200 秒。
   timeout_seconds: 7200
   done_markers:
@@ -111,6 +112,8 @@ database:
   path: "data/results.db"
 runner:
   continue_on_failure: true
+  # 收到 SSE event:onComplete 即 Case PASS；答案校验仍记录在 answer_ok/report 中。
+  pass_condition: network_complete
   case_interval_seconds: 1
   retry_count: 0
 logging:
