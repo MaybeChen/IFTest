@@ -51,7 +51,7 @@ class WorkflowConfig(BaseModel):
     send_selector: str = "button[type='submit']"
     answer_selector: str = "[data-testid='answer']"
     target: Literal["main", "iframe"] = "iframe"
-    refresh_action: Literal["reload", "click", "none"] = "reload"
+    refresh_action: Literal["reload", "iframe_reload", "click", "none"] = "reload"
     refresh_selector: str | None = None
     after_refresh_steps: list[PlaywrightStep] = Field(default_factory=list)
     case_ready_selector: str | None = None
@@ -70,9 +70,13 @@ class StreamConfig(BaseModel):
     # upper bound: StreamMonitor returns immediately when CDP observes done.
     timeout_seconds: float = Field(default=7_200, gt=0)
     done_markers: list[str] = Field(min_length=1)
+    done_event_names: list[str] = Field(default_factory=list)
     # Some fetch-based SSE clients abort the transport immediately after the
     # final event.  Enable only for systems where this is the documented close.
     aborted_sse_is_complete: bool = False
+    # fetch-based SSE does not always emit eventSourceMessageReceived.  In that
+    # case Network.loadingFinished is the precise end of the response body.
+    sse_loading_finished_is_complete: bool = False
 
 
 class DatabaseConfig(BaseModel):

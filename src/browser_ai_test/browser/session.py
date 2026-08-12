@@ -26,7 +26,9 @@ class SharedBrowserSession:
         self.monitor = StreamMonitor(
             stream.url_keywords,
             stream.done_markers,
+            done_event_names=stream.done_event_names,
             aborted_sse_is_complete=stream.aborted_sse_is_complete,
+            sse_loading_finished_is_complete=stream.sse_loading_finished_is_complete,
         )
 
     async def start(self) -> "SharedBrowserSession":

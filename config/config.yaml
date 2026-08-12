@@ -78,9 +78,10 @@ workflow:
   answer_selector: "[data-testid='answer']"
   case_ready_selector: ".wise-input"
   target: iframe
+  # 每条 Case 结束后按预期刷新整个页面。
   refresh_action: reload
   refresh_selector: null
-  # reload 后 AI 助手会收起，必须重新打开并等待 iframe 输入区恢复。
+  # 整页刷新后重新打开 AI 助手，再等待输入区恢复。
   after_refresh_steps:
     - action: wait_visible
       target: main
@@ -100,15 +101,21 @@ workflow:
 stream:
   protocol: "sse"
   url_keywords:
-    - "/api/agent/chat"
+    - "/api/chat/stream"
+    - "/api/generate"
   # 最长等待 2 小时；收到 CDP done marker 后会立即返回，不会固定等待 7200 秒。
   timeout_seconds: 7200
   done_markers:
     # 真实 SSE 以空 data 的 `event:onComplete` 结束。CDP 将 eventName/data 分开，
     # StreamMonitor 会组合后匹配这个标识。
     - "event:onComplete"
+  # 原生 EventSource 的结束事件名；优先按 CDP eventName 精确匹配。
+  done_event_names:
+    - "onComplete"
   # 当前 chat 前端在消费完 SSE 后会主动取消 fetch，CDP 表现为 net::ERR_ABORTED。
   aborted_sse_is_complete: true
+  # 当前页面使用原生 EventSource，不使用 fetch/loadingFinished 作为完成条件。
+  sse_loading_finished_is_complete: false
 database:
   path: "data/results.db"
 runner:
