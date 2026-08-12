@@ -515,6 +515,18 @@ Get-Content .\reports\browser-ai-test.log -Wait |
 `event_name='onComplete'` 和 `SSE business completion event matched`。日志文件位置可通过
 `logging.file` 修改；设置为 `null` 时只输出到控制台。
 
+如果连 `SSE event received` 都没有，常见原因是 `#methodCopilot` 是跨进程 iframe
+（OOPIF），主页面的 CDP Session 看不到它的 Network 事件。Runner 现在会在每条 Case
+发送前为当前 iframe 单独创建 CDP Session；正常日志应先出现：
+
+```text
+CDP Network monitor attached to iframe: #methodCopilot
+Tracked stream request: request_id=... type=EventSource url=...
+```
+
+整页刷新会创建新的 iframe，因此每条 Case 都会重新 attach，不能复用刷新前的 iframe
+CDP Session。
+
 当前默认 `runner.pass_condition: network_complete`：只要目标请求收到完整的
 `event:onComplete`，Case 就记为 PASS。Keyword/Regex 校验仍会执行并记录到
 `answer_ok` 和报告中，但不会改变最终 PASS。若需要恢复严格标准，可配置：

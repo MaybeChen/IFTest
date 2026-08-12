@@ -130,6 +130,37 @@ def test_iframe_reload_preserves_outer_page_and_prepares_next_case():
     assert page.calls[-1][0:2] == ("wait_for", "frame(#frame):#question")
 
 
+def test_prepare_case_attaches_monitor_after_iframe_is_ready():
+    page = FakePage()
+    calls = []
+
+    async def prepare_case():
+        calls.append("attached")
+
+    executor = FixedPlaywrightExecutor(
+        page, FakeMonitor(), SystemConfig(url="https://test", iframe_selector="#frame"),
+        UploadConfig(),
+        WorkflowConfig(
+            question_selector="#question", send_selector="#send", answer_selector="#answer",
+            target="iframe", refresh_action="none", case_ready_selector="#question",
+            step_interval_seconds=0,
+        ),
+        30,
+        prepare_case=prepare_case,
+    )
+    case = CaseModel(
+        id="1", name="qa", question="问题",
+        expected=ExpectedConfig(type="keyword", values=["答案"]),
+    )
+
+    asyncio.run(executor.execute(case))
+
+    assert calls == ["attached"]
+    ready_index = next(i for i, call in enumerate(page.calls) if call[0] == "wait_for")
+    fill_index = next(i for i, call in enumerate(page.calls) if call[0] == "fill")
+    assert ready_index < fill_index
+
+
 def test_fixed_workflow_runs_upload_focus_steps_and_question_nth(monkeypatch):
     from browser_ai_test.models import PlaywrightStep
 

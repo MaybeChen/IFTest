@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import time
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from browser_ai_test.browser.file_upload import upload_case_file
@@ -30,6 +31,7 @@ class FixedPlaywrightExecutor:
         upload: UploadConfig,
         workflow: WorkflowConfig,
         default_timeout: float,
+        prepare_case: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self.page = page
         self.monitor = monitor
@@ -37,6 +39,7 @@ class FixedPlaywrightExecutor:
         self.upload = upload
         self.workflow = workflow
         self.default_timeout = default_timeout
+        self.prepare_case = prepare_case
 
     async def initialize(self) -> None:
         await self.page.goto(self.system.url, wait_until="domcontentloaded")
@@ -51,6 +54,8 @@ class FixedPlaywrightExecutor:
         steps = 0
         try:
             await self._wait_case_ready(case.id)
+            if self.prepare_case:
+                await self.prepare_case()
             if self.workflow.before_case_steps:
                 await execute_playwright_steps(
                     self.page,

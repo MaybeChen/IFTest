@@ -92,11 +92,16 @@ class StreamMonitor:
         if not self.armed:
             return
         request = event.get("request", {})
-        if not self._url_matches(str(request.get("url", ""))):
+        url = str(request.get("url", ""))
+        if not self._url_matches(url):
             return
         resource_type = str(event.get("type", ""))
         protocol: Protocol | None = "sse" if resource_type == "EventSource" else None
         self._track(str(event["requestId"]), float(event["timestamp"]), protocol)
+        logger.info(
+            "Tracked stream request: request_id=%s type=%s url=%s",
+            event["requestId"], resource_type or "-", url,
+        )
 
     def on_response_received(self, event: dict[str, Any]) -> None:
         request_id = str(event.get("requestId", ""))

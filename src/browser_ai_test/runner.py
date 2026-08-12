@@ -33,6 +33,9 @@ class TestRunner:
                     session.page, session.monitor, self.config.system,
                     self.config.upload, self.config.workflow,
                     self.config.stream.timeout_seconds,
+                    prepare_case=lambda: session.attach_frame_monitor(
+                        self.config.system.iframe_selector
+                    ),
                 )
                 await executor.initialize()
                 for index, case in enumerate(cases, 1):

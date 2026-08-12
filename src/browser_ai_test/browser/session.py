@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from types import TracebackType
-from playwright.async_api import Browser, BrowserContext, CDPSession, Page, Playwright, async_playwright
+from playwright.async_api import Browser, BrowserContext, CDPSession, Frame, Page, Playwright, async_playwright
 
 from browser_ai_test.browser.cdp import ensure_loopback_no_proxy, fetch_cdp_version
 from browser_ai_test.browser.stream_monitor import StreamMonitor
@@ -23,6 +23,7 @@ class SharedBrowserSession:
         self.context: BrowserContext | None = None
         self.page: Page | None = None
         self.cdp_session: CDPSession | None = None
+        self.frame_cdp_session: CDPSession | None = None
         self.monitor = StreamMonitor(
             stream.url_keywords,
             stream.done_markers,
@@ -49,7 +50,25 @@ class SharedBrowserSession:
             await self.close()
             raise
 
+    async def attach_frame_monitor(self, iframe_selector: str | None) -> None:
+        """Attach Network listeners to an iframe target, including OOPIFs."""
+        if not iframe_selector or not self.context or not self.page:
+            return
+        if self.frame_cdp_session:
+            await self.frame_cdp_session.detach()
+            self.frame_cdp_session = None
+        handle = await self.page.locator(iframe_selector).element_handle()
+        frame: Frame | None = await handle.content_frame() if handle else None
+        if frame is None:
+            raise RuntimeError(f"无法为 iframe 创建 CDP Session: {iframe_selector!r}")
+        self.frame_cdp_session = await self.context.new_cdp_session(frame)
+        await self.monitor.attach(self.frame_cdp_session)
+        logger.info("CDP Network monitor attached to iframe: %s", iframe_selector)
+
     async def close(self) -> None:
+        if self.frame_cdp_session:
+            await self.frame_cdp_session.detach()
+            self.frame_cdp_session = None
         if self.cdp_session:
             await self.cdp_session.detach()
             self.cdp_session = None
