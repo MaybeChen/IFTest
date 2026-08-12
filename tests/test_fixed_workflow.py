@@ -1,5 +1,7 @@
 import asyncio
 
+import pytest
+
 from browser_ai_test.browser.fixed_workflow import FixedPlaywrightExecutor
 from browser_ai_test.config import LoginConfig, SystemConfig, UploadConfig, WorkflowConfig
 from browser_ai_test.models import ExpectedConfig, TestCase as CaseModel
@@ -20,6 +22,9 @@ class FakeLocator:
 
     async def inner_text(self, **kwargs):
         self.calls.append(("inner_text", self.selector, kwargs)); return "页面生成的标准答案"
+
+    async def wait_for(self, **kwargs):
+        self.calls.append(("wait_for", self.selector, kwargs))
 
     def nth(self, index):
         return FakeLocator(f"{self.selector}:nth({index})", self.calls, self.visible)
@@ -51,6 +56,8 @@ def test_fixed_workflow_logs_in_runs_case_and_refreshes(monkeypatch):
         login=LoginConfig(enabled=True, username_env="QA_USER", password_env="QA_PASSWORD"),
         question_selector="#question", send_selector="#send", answer_selector="#answer",
         target="iframe", refresh_action="reload", step_interval_seconds=0,
+        case_ready_selector="#question",
+        after_refresh_steps=[],
     )
     executor = FixedPlaywrightExecutor(
         page, monitor, SystemConfig(url="https://test", iframe_selector="#frame"),
@@ -70,6 +77,8 @@ def test_fixed_workflow_logs_in_runs_case_and_refreshes(monkeypatch):
     assert any(call[:3] == ("fill", "main:input[type='password']", "secret") for call in page.calls)
     assert any(call[:3] == ("fill", "frame(#frame):#question", "问题") for call in page.calls)
     assert any(call[0] == "reload" for call in page.calls)
+    ready = [call for call in page.calls if call[0:2] == ("wait_for", "frame(#frame):#question")]
+    assert len(ready) == 2
 
 
 def test_fixed_workflow_does_not_require_login_when_hidden(monkeypatch):
@@ -121,3 +130,36 @@ def test_fixed_workflow_runs_upload_focus_steps_and_question_nth(monkeypatch):
     input_index = next(i for i, call in enumerate(page.calls) if call[0:2] == ("click", "frame(#methodCopilot):.wise-input"))
     fill_index = next(i for i, call in enumerate(page.calls) if call[:3] == ("fill", "frame(#methodCopilot):span:nth(3)", "根据文档生成接口"))
     assert upload_index < content_index < input_index < fill_index
+
+
+def test_failed_case_refreshes_and_restores_ui_for_next_case():
+    class FailingMonitor(FakeMonitor):
+        async def wait_done(self, timeout):
+            raise RuntimeError("stream failed")
+
+    page = FakePage()
+    from browser_ai_test.models import PlaywrightStep
+    workflow = WorkflowConfig(
+        question_selector="#question", send_selector="#send", target="iframe",
+        refresh_action="reload", case_ready_selector="#question",
+        after_refresh_steps=[
+            PlaywrightStep(action="click", target="main", selector=".ai-toggle-btn")
+        ],
+        step_interval_seconds=0,
+    )
+    executor = FixedPlaywrightExecutor(
+        page, FailingMonitor(),
+        SystemConfig(url="https://test", iframe_selector="#frame"),
+        UploadConfig(), workflow, 30,
+    )
+    case = CaseModel(
+        id="failed", name="qa", question="问题",
+        expected=ExpectedConfig(type="keyword", values=["答案"]),
+    )
+
+    with pytest.raises(RuntimeError, match="stream failed"):
+        asyncio.run(executor.execute(case))
+
+    assert any(call[0] == "reload" for call in page.calls)
+    assert any(call[0:2] == ("click", "main:.ai-toggle-btn") for call in page.calls)
+    assert page.calls[-1][0:2] == ("wait_for", "frame(#frame):#question")

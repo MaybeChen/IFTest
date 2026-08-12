@@ -50,6 +50,7 @@ class FixedPlaywrightExecutor:
         started = time.monotonic()
         steps = 0
         try:
+            await self._wait_case_ready(case.id)
             if self.workflow.before_case_steps:
                 await execute_playwright_steps(
                     self.page,
@@ -150,14 +151,44 @@ class FixedPlaywrightExecutor:
 
     async def _refresh(self) -> None:
         if self.workflow.refresh_action == "none":
+            logger.info("Case cleanup: refresh disabled")
             return
         if self.workflow.refresh_action == "reload":
+            logger.info("Case cleanup: reloading page")
             await self.page.reload(wait_until="domcontentloaded")
-            return
-        if not self.workflow.refresh_selector:
-            raise FixedWorkflowError(
-                "workflow.refresh_action=click 时必须配置 refresh_selector"
+        else:
+            if not self.workflow.refresh_selector:
+                raise FixedWorkflowError(
+                    "workflow.refresh_action=click 时必须配置 refresh_selector"
+                )
+            logger.info(
+                "Case cleanup: clicking refresh selector=%r",
+                self.workflow.refresh_selector,
             )
-        await self._root().locator(self.workflow.refresh_selector).click(
-            timeout=self.workflow.ui_timeout_ms
-        )
+            await self._root().locator(self.workflow.refresh_selector).click(
+                timeout=self.workflow.ui_timeout_ms
+            )
+        if self.workflow.after_refresh_steps:
+            logger.info("Case cleanup: restoring QA UI after refresh")
+            await execute_playwright_steps(
+                self.page,
+                self.workflow.after_refresh_steps,
+                self.system.iframe_selector,
+                self.workflow.step_interval_seconds,
+            )
+        await self._wait_case_ready("next")
+        logger.info("Case cleanup: refresh completed; next Case may start")
+
+    async def _wait_case_ready(self, case_id: str) -> None:
+        selector = self.workflow.case_ready_selector
+        if not selector:
+            return
+        logger.info("Case %s: waiting for QA UI selector=%r", case_id, selector)
+        try:
+            await self._root().locator(selector).wait_for(
+                state="visible", timeout=self.workflow.ui_timeout_ms
+            )
+        except Exception as exc:
+            raise FixedWorkflowError(
+                f"问答界面未就绪，selector={selector!r}: {exc}"
+            ) from exc

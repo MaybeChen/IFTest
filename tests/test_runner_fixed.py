@@ -54,3 +54,39 @@ def test_runner_uses_fixed_playwright_workflow(monkeypatch, tmp_path):
     assert FakeFixedExecutor.initialized
     assert collector.results[0].passed
     assert list(tmp_path.glob("*.html"))
+
+
+def test_runner_continues_with_second_case_after_first_fails(monkeypatch, tmp_path):
+    import browser_ai_test.runner as runner_module
+
+    executed = []
+
+    class FailsFirstExecutor(FakeFixedExecutor):
+        async def execute(self, case):
+            executed.append(case.id)
+            if case.id == "C1":
+                raise RuntimeError("first case failed")
+            return WorkflowRun(
+                UIExecutionResult(answer="标准答案", page_ok=True, reason="ok"), 4, 1.0
+            )
+
+    config = AppConfig.model_validate({
+        "browser": {}, "system": {"url": "https://test", "iframe_selector": "#frame"},
+        "stream": {"url_keywords": ["/stream"], "done_markers": ["[DONE]"]},
+        "runner": {"case_interval_seconds": 0, "continue_on_failure": True},
+        "report": {"html_directory": str(tmp_path)},
+    })
+    cases = [
+        CaseModel(id=case_id, name=case_id, question="q", expected=ExpectedConfig(type="keyword", values=["答案"]))
+        for case_id in ("C1", "C2")
+    ]
+    monkeypatch.setattr(runner_module, "FixedPlaywrightExecutor", FailsFirstExecutor)
+    monkeypatch.setattr(runner_module, "render_case", lambda *args: None)
+    monkeypatch.setattr(runner_module, "render_summary", lambda *args: None)
+
+    _, collector = asyncio.run(Runner(config, FakeDatabase(), FakeSession).run(cases))
+
+    assert executed == ["C1", "C2"]
+    assert len(collector.results) == 2
+    assert not collector.results[0].passed
+    assert collector.results[1].passed

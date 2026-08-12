@@ -53,6 +53,8 @@ class WorkflowConfig(BaseModel):
     target: Literal["main", "iframe"] = "iframe"
     refresh_action: Literal["reload", "click", "none"] = "reload"
     refresh_selector: str | None = None
+    after_refresh_steps: list[PlaywrightStep] = Field(default_factory=list)
+    case_ready_selector: str | None = None
     ui_timeout_ms: float = Field(default=10_000, gt=0)
     step_interval_seconds: float = Field(default=1, ge=0)
 

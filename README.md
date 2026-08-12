@@ -540,6 +540,41 @@ browser-ai-test doctor
 
 需要定位真实的 `<input type="file">`，包括隐藏 input，并修改 `upload.input_selector`。Playwright 使用 `set_input_files()`，不操作系统文件选择窗口。
 
+### 第一条 Case 结束后没有执行下一条
+
+Runner 的继续条件是 `runner.continue_on_failure`，不是上一条 Case 必须 PASS：
+
+```yaml
+runner:
+  continue_on_failure: true
+```
+
+使用 `workflow.refresh_action: reload` 时，刷新会收起 AI 助手。需要通过
+`after_refresh_steps` 重新打开助手，并用 `case_ready_selector` 等待 iframe 输入区恢复；
+日志出现 `Case cleanup: refresh completed; next Case may start` 后才会开始下一条。
+
+```yaml
+workflow:
+  refresh_action: reload
+  case_ready_selector: ".wise-input"
+  after_refresh_steps:
+    - action: wait_visible
+      target: main
+      selector: ".ai-toggle-btn"
+      timeout_ms: 30000
+    - action: click
+      target: main
+      selector: ".ai-toggle-btn"
+      timeout_ms: 30000
+    - action: wait_visible
+      target: iframe
+      selector: ".wise-input"
+      timeout_ms: 30000
+```
+
+Case 的 `timeout_seconds` 单位为秒。等待两分钟应填写 `120`；`120000` 会等待
+120000 秒，看起来就像没有继续执行下一条 Case。
+
 ### WebSocket 一直不关闭
 
 这是正常的。平台等待业务 done marker，不等待 WebSocket close。

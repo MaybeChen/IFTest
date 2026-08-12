@@ -35,7 +35,10 @@ async def upload_case_file(
         return file_path
     locator = await _find_file_input(page, config, iframe_selector)
     try:
-        await locator.set_input_files(str(file_path), timeout=config.timeout_ms)
+        # Upload components commonly keep several hidden inputs in the DOM.
+        # Selecting one input avoids strict-mode errors and bypasses the native
+        # file chooser, which otherwise blocks the following Case.
+        await locator.first.set_input_files(str(file_path), timeout=config.timeout_ms)
     except Exception as exc:
         raise FileUploadError(
             f"上传文件失败 {file_path.name!r}, selector={config.input_selector!r}: {exc}"

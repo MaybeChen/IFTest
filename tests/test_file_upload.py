@@ -15,6 +15,10 @@ class FakeLocator:
     async def count(self):
         return self.counts.get(self.name, 0)
 
+    @property
+    def first(self):
+        return self
+
     async def set_input_files(self, path, **kwargs):
         self.calls.append((self.name, path, kwargs))
 

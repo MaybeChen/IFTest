@@ -9,9 +9,9 @@ system:
   iframe_selector: "#methodCopilot"
 upload:
   directory: "data/uploads"
-  input_selector: ".el-upload input[type='file'], input.el-upload"
-  # 捕获点击后出现的文件选择器并由 Playwright 直接设置文件。
-  trigger_selector: ".chat-input-icon"
+  input_selector: ".el-upload input[type='file'], input.el-upload, input[type='file']"
+  # 直接设置隐藏 input，不打开会阻塞后续 Case 的系统文件选择窗口。
+  trigger_selector: null
   target: iframe
   timeout_ms: 10000
 workflow:
@@ -76,9 +76,24 @@ workflow:
   question_nth: 3
   send_selector: ".wise-input-send"
   answer_selector: "[data-testid='answer']"
+  case_ready_selector: ".wise-input"
   target: iframe
   refresh_action: reload
   refresh_selector: null
+  # reload 后 AI 助手会收起，必须重新打开并等待 iframe 输入区恢复。
+  after_refresh_steps:
+    - action: wait_visible
+      target: main
+      selector: ".ai-toggle-btn"
+      timeout_ms: 30000
+    - action: click
+      target: main
+      selector: ".ai-toggle-btn"
+      timeout_ms: 30000
+    - action: wait_visible
+      target: iframe
+      selector: ".wise-input"
+      timeout_ms: 30000
   ui_timeout_ms: 10000
   # UI 操作之间暂停 1 秒；不参与问答完成判断。
   step_interval_seconds: 1
