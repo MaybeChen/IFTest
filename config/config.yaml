@@ -107,6 +107,8 @@ stream:
     # 真实 SSE 以空 data 的 `event:onComplete` 结束。CDP 将 eventName/data 分开，
     # StreamMonitor 会组合后匹配这个标识。
     - "event:onComplete"
+  # 当前 chat 前端在消费完 SSE 后会主动取消 fetch，CDP 表现为 net::ERR_ABORTED。
+  aborted_sse_is_complete: true
 database:
   path: "data/results.db"
 runner:

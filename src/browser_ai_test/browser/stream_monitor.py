@@ -20,9 +20,16 @@ class StreamTimeoutError(StreamMonitorError):
 class StreamMonitor:
     """Case-scoped state machine fed by monotonic CDP Network timestamps."""
 
-    def __init__(self, url_keywords: list[str], done_markers: list[str]) -> None:
+    def __init__(
+        self,
+        url_keywords: list[str],
+        done_markers: list[str],
+        *,
+        aborted_sse_is_complete: bool = False,
+    ) -> None:
         self.url_keywords = tuple(url_keywords)
         self.done_markers = tuple(done_markers)
+        self.aborted_sse_is_complete = aborted_sse_is_complete
         self.done_event = asyncio.Event()
         self.reset()
 
@@ -135,7 +142,23 @@ class StreamMonitor:
             and not self.done_event.is_set()
             and str(event.get("requestId", "")) in self.request_ids
         ):
-            self.network_error = str(event.get("errorText", "Network.loadingFailed"))
+            error_text = str(event.get("errorText", "Network.loadingFailed"))
+            if (
+                self.aborted_sse_is_complete
+                and error_text == "net::ERR_ABORTED"
+                and self.detected_protocol == "sse"
+            ):
+                # The application consumed SSE data and then intentionally
+                # cancelled the fetch transport.  For this explicitly enabled
+                # compatibility mode, transport abort is the terminal signal.
+                self.done_ts = float(event.get("timestamp", self.request_start_ts or 0))
+                self.done_event.set()
+                logger.info(
+                    "Treating net::ERR_ABORTED as completed SSE request: %s",
+                    event.get("requestId", ""),
+                )
+                return
+            self.network_error = error_text
             self.done_event.set()
 
     async def wait_done(self, timeout_seconds: float) -> StreamResult:

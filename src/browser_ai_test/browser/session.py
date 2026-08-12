@@ -23,7 +23,11 @@ class SharedBrowserSession:
         self.context: BrowserContext | None = None
         self.page: Page | None = None
         self.cdp_session: CDPSession | None = None
-        self.monitor = StreamMonitor(stream.url_keywords, stream.done_markers)
+        self.monitor = StreamMonitor(
+            stream.url_keywords,
+            stream.done_markers,
+            aborted_sse_is_complete=stream.aborted_sse_is_complete,
+        )
 
     async def start(self) -> "SharedBrowserSession":
         if self.config.bypass_proxy_for_loopback:

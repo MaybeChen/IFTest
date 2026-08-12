@@ -65,6 +65,59 @@ def test_loading_failed_after_business_complete_is_ignored():
     assert item.network_error is None
 
 
+def test_configured_sse_abort_after_data_is_completion():
+    item = StreamMonitor(
+        ["/api/stream"], ["event:onComplete"], aborted_sse_is_complete=True
+    )
+    item.arm("sse")
+    request(item, kind="EventSource")
+    item.on_event_source_message_received(
+        {"requestId": "1", "timestamp": 11, "eventName": "onResult", "data": "answer"}
+    )
+    item.on_loading_failed(
+        {"requestId": "1", "timestamp": 12, "errorText": "net::ERR_ABORTED"}
+    )
+
+    result = asyncio.run(item.wait_done(0.1))
+    assert result.completed
+    assert result.stream_total_ms == pytest.approx(2000)
+    assert item.network_error is None
+
+
+def test_configured_fetch_sse_abort_completes_without_eventsource_messages():
+    item = StreamMonitor(
+        ["/api/stream"], ["event:onComplete"], aborted_sse_is_complete=True
+    )
+    item.arm("sse")
+    request(item, kind="Fetch")
+    item.on_response_received(
+        {"requestId": "1", "response": {"mimeType": "text/event-stream"}}
+    )
+    item.on_loading_failed(
+        {"requestId": "1", "timestamp": 12, "errorText": "net::ERR_ABORTED"}
+    )
+
+    result = asyncio.run(item.wait_done(0.1))
+    assert result.completed
+    assert result.ttft_ms is None
+    assert result.stream_total_ms == pytest.approx(2000)
+
+
+def test_sse_abort_is_error_without_explicit_compatibility_mode():
+    item = StreamMonitor(["/api/stream"], ["event:onComplete"])
+    item.arm("sse")
+    request(item, kind="EventSource")
+    item.on_event_source_message_received(
+        {"requestId": "1", "timestamp": 11, "eventName": "onResult", "data": "answer"}
+    )
+    item.on_loading_failed(
+        {"requestId": "1", "timestamp": 12, "errorText": "net::ERR_ABORTED"}
+    )
+
+    with pytest.raises(Exception, match="net::ERR_ABORTED"):
+        asyncio.run(item.wait_done(0.1))
+
+
 def test_websocket_completed_without_close():
     item = monitor("websocket")
     item.on_websocket_created({"requestId": "ws", "url": "wss://test/api/stream", "timestamp": 20})

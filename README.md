@@ -446,6 +446,18 @@ data:
 SSE 已发出 `onComplete` 后，即便 Chrome 随后对连接报告 `net::ERR_ABORTED`，该请求也按
 业务成功处理。
 
+如果页面使用 `fetch` 消费 SSE，并且读取完结果后主动取消连接，CDP 可能只报告
+`Network.loadingFailed: net::ERR_ABORTED`。确认这是该系统的正常结束方式后，可以开启：
+
+```yaml
+stream:
+  aborted_sse_is_complete: true
+```
+
+兼容模式只会在响应 MIME 或 CDP 事件已经确认请求是 SSE 后，将
+`net::ERR_ABORTED` 作为完成；其他网络错误仍然失败。它也兼容 Chrome 不产生
+`eventSourceMessageReceived` 的 fetch-streaming 实现。普通系统应保持默认值 `false`。
+
 当前默认 `runner.pass_condition: network_complete`：只要目标请求收到完整的
 `event:onComplete`，Case 就记为 PASS。Keyword/Regex 校验仍会执行并记录到
 `answer_ok` 和报告中，但不会改变最终 PASS。若需要恢复严格标准，可配置：
