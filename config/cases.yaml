@@ -9,7 +9,7 @@ cases:
       match_mode: all
     stream:
       protocol: sse
-    timeout_seconds: 120
+    timeout_seconds: 7200
   - id: QA_002
     name: 数学测试
     question: "1+1等于多少？"
@@ -19,4 +19,4 @@ cases:
       values: ["(^|[^0-9])2([^0-9]|$)"]
     stream:
       protocol: sse
-    timeout_seconds: 60
+    timeout_seconds: 7200

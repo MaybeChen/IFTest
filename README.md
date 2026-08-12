@@ -207,7 +207,8 @@ stream:
   protocol: sse                 # sse / websocket / http / auto
   url_keywords:
     - "/api/chat/stream"
-  timeout_seconds: 120
+  # 最长等待 2 小时；收到业务 done marker 后立即结束等待。
+  timeout_seconds: 7200
   done_markers:
     - "[DONE]"
     - '"status":"completed"'
@@ -343,7 +344,7 @@ cases:
       match_mode: all
     stream:
       protocol: sse
-    timeout_seconds: 120
+    timeout_seconds: 7200
 
   - id: FILE_QA_002
     name: 安装手册问答
@@ -352,7 +353,7 @@ cases:
     expected:
       type: regex
       values: ["注意|警告|限制"]
-    timeout_seconds: 120
+    timeout_seconds: 7200
 ```
 
 `file` 相对于 `upload.directory`。允许目录内子路径，不允许绝对路径或 `../` 越界。无附件时省略 `file` 或设为 `null`。
@@ -572,8 +573,9 @@ workflow:
       timeout_ms: 30000
 ```
 
-Case 的 `timeout_seconds` 单位为秒。等待两分钟应填写 `120`；`120000` 会等待
-120000 秒，看起来就像没有继续执行下一条 Case。
+Case 的 `timeout_seconds` 单位为秒。耗时文档问答建议填写 `7200`（最长两小时），
+而不是按毫秒填写 `120000`。该值是最长等待上限，不是固定 sleep；只要 CDP 收到
+业务 done marker，就会立即继续读取答案并运行下一条 Case。
 
 ### WebSocket 一直不关闭
 
