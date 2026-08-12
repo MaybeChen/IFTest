@@ -1,0 +1,10 @@
+{
+  "json.schemas": [
+    {
+      "fileMatch": [
+        ".vscode/wedev/components/*.json"
+      ],
+      "url": "./.vscode/wedev/schemas/component-schema.json"
+    }
+  ]
+}

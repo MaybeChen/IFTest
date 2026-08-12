@@ -4,7 +4,7 @@ browser:
   cdp_timeout_seconds: 10
   bypass_proxy_for_loopback: true
 system:
-  url: "http://7.212.32.169:8081/index.html#/login"
+  url: "http://10.136.122.46:9999/#/login"
   iframe_hint: "business iframe"
   iframe_selector: "#methodCopilot"
 upload:
@@ -102,8 +102,7 @@ workflow:
 stream:
   protocol: "sse"
   url_keywords:
-    - "/api/chat/stream"
-    - "/api/generate"
+    - "/api/agent/chat"
   # 最长等待 2 小时；收到 CDP done marker 后会立即返回，不会固定等待 7200 秒。
   timeout_seconds: 7200
   done_markers:
