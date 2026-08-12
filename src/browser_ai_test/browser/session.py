@@ -9,6 +9,7 @@ from browser_ai_test.browser.cdp import (
     ensure_loopback_no_proxy,
     fetch_cdp_version,
     frame_uses_parent_cdp_session,
+    detach_cdp_session_safely,
 )
 from browser_ai_test.browser.stream_monitor import StreamMonitor
 from browser_ai_test.config import BrowserConfig, StreamConfig
@@ -59,8 +60,9 @@ class SharedBrowserSession:
         if not iframe_selector or not self.context or not self.page:
             return
         if self.frame_cdp_session:
-            await self.frame_cdp_session.detach()
+            stale_session = self.frame_cdp_session
             self.frame_cdp_session = None
+            await detach_cdp_session_safely(stale_session, label="previous iframe")
         handle = await self.page.locator(iframe_selector).element_handle()
         frame: Frame | None = await handle.content_frame() if handle else None
         if frame is None:
@@ -82,11 +84,13 @@ class SharedBrowserSession:
 
     async def close(self) -> None:
         if self.frame_cdp_session:
-            await self.frame_cdp_session.detach()
+            frame_session = self.frame_cdp_session
             self.frame_cdp_session = None
+            await detach_cdp_session_safely(frame_session, label="iframe")
         if self.cdp_session:
-            await self.cdp_session.detach()
+            page_session = self.cdp_session
             self.cdp_session = None
+            await detach_cdp_session_safely(page_session, label="page")
         if self.browser:
             await self.browser.close()  # disconnects Playwright; external Chrome remains alive
             self.browser = None

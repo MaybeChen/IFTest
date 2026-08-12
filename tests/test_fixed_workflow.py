@@ -161,6 +161,28 @@ def test_prepare_case_attaches_monitor_after_iframe_is_ready():
     assert ready_index < fill_index
 
 
+def test_answer_extraction_can_be_disabled_for_network_only_pass():
+    page = FakePage()
+    executor = FixedPlaywrightExecutor(
+        page, FakeMonitor(), SystemConfig(url="https://test", iframe_selector="#frame"),
+        UploadConfig(),
+        WorkflowConfig(
+            question_selector="#question", send_selector="#send", answer_selector=None,
+            target="iframe", refresh_action="none", step_interval_seconds=0,
+        ),
+        30,
+    )
+    case = CaseModel(
+        id="1", name="qa", question="问题",
+        expected=ExpectedConfig(type="keyword", values=["答案"]),
+    )
+
+    result = asyncio.run(executor.execute(case))
+
+    assert result.result.answer == ""
+    assert not any(call[0] == "inner_text" for call in page.calls)
+
+
 def test_fixed_workflow_runs_upload_focus_steps_and_question_nth(monkeypatch):
     from browser_ai_test.models import PlaywrightStep
 

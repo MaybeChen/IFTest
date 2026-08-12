@@ -101,10 +101,17 @@ class FixedPlaywrightExecutor:
             )
             steps += 1
             await self.monitor.wait_done(case.timeout_seconds or self.default_timeout)
-            answer = await root.locator(self.workflow.answer_selector).inner_text(
-                timeout=self.workflow.ui_timeout_ms
-            )
-            steps += 1
+            answer = ""
+            if self.workflow.answer_selector:
+                answer = await root.locator(self.workflow.answer_selector).inner_text(
+                    timeout=self.workflow.ui_timeout_ms
+                )
+                steps += 1
+            else:
+                logger.info(
+                    "Case %s: answer extraction disabled; network completion is sufficient",
+                    case.id,
+                )
             return WorkflowRun(
                 result=UIExecutionResult(
                     answer=answer, page_ok=True, reason="固定 Playwright 流程执行成功"
